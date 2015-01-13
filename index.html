@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dance - A JavaScript animation framework.</title>
+    <script type="text/javascript" src="http://s1.bdstatic.com/r/www/cache/ecom/esl/1-8-2/esl.js"></script>
+    <style type="text/css">
+    body {padding:0;margin:0;}
+    #ticker {
+        background: #369;
+        padding: 10px 20px;
+        color: white;
+    }
+    #canvas {
+        position: relative;
+    }
+    #block {
+        background: red;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100px;
+        height: 100px;
+    }
+    </style>
+</head>
+<body>
+<div id="ticker">0</div>
+<div id="canvas">
+    <div id="block"></div>
+</div>
+<script type="text/javascript">
+require.config({
+    baseUrl: 'src'
+});
+require(['Ticker'], function(Ticker) {
+    var ticker = new Ticker();
+    var count = 0;
+    ticker.addListener('tick', function() {
+        count++;
+        document.getElementById('ticker').innerHTML = 'Tick count: ' + count;
+    });
+});
+require(['Dance'], function(Dance) {
+    var ele = document.getElementById('block');
+    Dance.move(ele)
+        .duration(1000)
+        .from({
+            left: '0px'
+        })
+        .to({
+            left: '200px'
+        });
+    var dance = Dance.create()
+        .add(
+            Dance.move(ele)
+                .to({ left: '100px' })
+                .duration(1000)
+        )
+        .at(3000)
+        .add(
+            Dance.move(ele)
+                .from({ top: '0px' })
+                .to({ top: '100px' })
+                .duration(1000)
+
+        )
+        .at(4000);
+});
+</script>
+</body>
+</html>

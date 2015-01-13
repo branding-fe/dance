@@ -1,0 +1,26 @@
+{
+  "name": "dance",
+  "version": "1.0.0",
+  "description": "Light-weight JavaScript animation framework",
+  "main": "index.js",
+  "dependencies": {
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/branding-fe/dance.git"
+  },
+  "keywords": [
+    "dance",
+    "animation",
+    "JavaScript"
+  ],
+  "author": "osdream",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/branding-fe/dance/issues"
+  },
+  "homepage": "https://github.com/branding-fe/dance"
+}
