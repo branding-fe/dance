@@ -16,7 +16,8 @@
 
 define(function(require) {
     var global = {
-        defaults: {}
+        defaults: {},
+        TINY_NUMBER: 0.00000001
     };
 
     return global;

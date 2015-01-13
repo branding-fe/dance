@@ -14,20 +14,27 @@
     #canvas {
         position: relative;
     }
-    #block {
-        background: red;
+    .block {
         position: absolute;
         top: 0;
-        left: 0;
+        left: 0px;
         width: 100px;
         height: 100px;
+    }
+    #block1 {
+        background: #E67E22;
+    }
+    #block2 {
+        background: #1ABC9C;
+        left: 200px;
     }
     </style>
 </head>
 <body>
-<div id="ticker">0</div>
+<div id="ticker"><span id="ticker-count">0</span>&nbsp;&nbsp;&nbsp;&nbsp;<span id="ticker-fps">0</span></div>
 <div id="canvas">
-    <div id="block"></div>
+    <div id="block1" class="block"></div>
+    <div id="block2" class="block"></div>
 </div>
 <script type="text/javascript">
 require.config({
@@ -36,36 +43,52 @@ require.config({
 require(['Ticker'], function(Ticker) {
     var ticker = new Ticker();
     var count = 0;
+    var times = [];
     ticker.addListener('tick', function() {
         count++;
-        document.getElementById('ticker').innerHTML = 'Tick count: ' + count;
+        times.unshift(new Date().getTime());
+        if (0 === count % 5) {
+            var fps = (1000 * (times.length - 1) / (times[0] - times[times.length - 1])).toFixed(1);
+            document.getElementById('ticker-fps').innerHTML = 'FPS: ' + fps;
+            times.splice(30, times.length - 30);
+        }
+        document.getElementById('ticker-count').innerHTML = 'Tick count: ' + count;
     });
 });
 require(['Dance'], function(Dance) {
-    var ele = document.getElementById('block');
-    Dance.move(ele)
+    var ele1 = document.getElementById('block1');
+    var ele2 = document.getElementById('block2');
+    Dance.move(ele1)
         .duration(1000)
         .from({
+            top: '0px',
             left: '0px'
         })
         .to({
-            left: '200px'
+            top: '100px',
+            left: '100px'
         });
     var dance = Dance.create()
+        // .scale(0.1)
         .add(
-            Dance.move(ele)
+            Dance.move(ele2)
                 .to({ left: '100px' })
                 .duration(1000)
         )
-        .at(3000)
+        .at(1000)
         .add(
-            Dance.move(ele)
+            Dance.move(ele2)
                 .from({ top: '0px' })
                 .to({ top: '100px' })
                 .duration(1000)
 
         )
-        .at(4000);
+        .at(2000);
+
+        setTimeout(function() {
+            dance.reverse();
+        }, 3000);
+        window.dance = dance;
 });
 </script>
 </body>

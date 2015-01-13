@@ -35,10 +35,6 @@ define(function(require) {
     }
     util.inherits(Dance, Timeline);
 
-    Dance.prototype.reverse = function() {
-        // TODO: reverse
-    };
-
     // --------- 下面是各种静态方法 ----------- //
 
     Dance.defaults = function(key, value) {

@@ -15,9 +15,11 @@
  */
 
 define(function(require) {
+    var global = require('./global');
     var util = require('./util');
     var events = require('./events');
     var EventDispatcher = require('./EventDispatcher');
+    var TINY_NUMBER = global.TINY_NUMBER;
 
     function TimeEvent(options) {
         EventDispatcher.call(this);
@@ -46,13 +48,13 @@ define(function(require) {
          * 持续时间或者持续帧数
          * @type {number}
          */
-        this._duration;
+        this._duration = Infinity;
 
         /**
          * 时间缩放比例
          * @param {number}
          */
-        this.scale = 1;
+        this._scale = 1;
 
         /**
          * 绑定的时间轴
@@ -68,8 +70,20 @@ define(function(require) {
 
         /**
          * 当前时间或帧数(相对于自身startPoint)
+         * @type {number}
          */
-        this.time = 0;
+        this.time = -TINY_NUMBER;
+
+        /**
+         * 记录计算的当前时间或帧数
+         */
+        this.realPlayhead = -2 * TINY_NUMBER;
+
+        /**
+         * 是否逆向
+         * @type {boolean}
+         */
+        this.isReversed = false;
     }
     util.inherits(TimeEvent, EventDispatcher);
 
@@ -82,11 +96,21 @@ define(function(require) {
     };
 
     TimeEvent.prototype.getScale = function() {
-        return this.scale;
+        return this._scale;
+    };
+
+    TimeEvent.prototype.getTime = function() {
+        return this.time;
     };
 
     TimeEvent.prototype.duration = function(duration) {
         this._duration = duration;
+        return this;
+    };
+
+    TimeEvent.prototype.scale = function(scale) {
+        this._scale = scale;
+        // TODO;
         return this;
     };
 
@@ -114,15 +138,15 @@ define(function(require) {
         }
     };
 
-    TimeEvent.prototype.at
-        = TimeEvent.prototype.when
-        = function(timeOrFrame) {
-            if (this.timeline) {
-                this.time = timeOrFrame + this.getStartPoint();
-            }
+    // TimeEvent.prototype.at
+    //     = TimeEvent.prototype.when
+    //     = function(timeOrFrame) {
+    //         if (this.timeline) {
+    //             this.time = timeOrFrame + this.getStartPoint();
+    //         }
 
-            return this;
-        };
+    //         return this;
+    //     };
 
     TimeEvent.prototype.delay
         = TimeEvent.prototype.after
@@ -131,6 +155,96 @@ define(function(require) {
 
             return this;
         };
+
+    TimeEvent.prototype.render = function(playhead) {
+        this.time = playhead;
+
+        // TODO: zero-duration case
+        // TODO: supressEvent ?
+        // 如果时zero-duration的move，如果正好落在此处，有两种情况
+        // 1. opt_supressEvent=true(例如seek(xxx)) 不触发开始或者结束事件，那么需要在下一次移动时触发
+        // 2. opt_supressEvent=false 那么立即触发事件
+
+        var duration = this.getDuration();
+        // 限定在 0 ~ duration 之间
+        var realPlayhead = Math.min(Math.max(playhead, -TINY_NUMBER), duration + TINY_NUMBER);
+
+        // 如果是逆向，playhead 反转
+        if (this.isReversed) {
+            realPlayhead = duration - realPlayhead;
+        }
+
+        // 不处于激活状态或者跟上一次相同，不需要渲染
+        var lastRealPlayhead = this.realPlayhead;
+        if (!this.isActive || realPlayhead === lastRealPlayhead) {
+            return this;
+        }
+        this.realPlayhead = realPlayhead;
+
+        // 从区域内离开都是"完成"
+        var isFinished = false;
+        if (realPlayhead >= duration && lastRealPlayhead < duration
+            || realPlayhead <= 0 && lastRealPlayhead > 0
+        ) {
+            isFinished = true;
+        }
+        // 从区域外进入区域内都是"开始"
+        else if (realPlayhead >= 0
+            && realPlayhead <= duration
+            && (lastRealPlayhead < 0 || lastRealPlayhead > duration)
+        ) {
+            this.trigger(events.BEFORE_START);
+        }
+
+        this.internalRender(realPlayhead);
+
+        if (isFinished) {
+            this.deactivate();
+            this.trigger(events.AFTER_FINISH);
+        }
+
+        return this;
+
+    };
+
+    TimeEvent.prototype.internalRender = function() {};
+
+    TimeEvent.prototype.activate = function() {
+        this.isActive = true;
+    };
+
+    TimeEvent.prototype.deactivate = function() {
+        this.isActive = false;
+    };
+
+    /**
+     * 时光逆流
+     * @param {number} opt_reversePoint 反向时间点，如果没有指定就用当前时间点
+     */
+    TimeEvent.prototype.reverse = function(opt_reversePoint) {
+        this.isReversed = !this.isReversed;
+        if (!this.timeline) {
+            return this;
+        }
+        var duration = this.getDuration();
+        var reversePoint = opt_reversePoint != null
+            ? opt_reversePoint
+            : this.realPlayhead;
+        // 限制 reversePoint 到 0 ~ duration 中
+        reversePoint = Math.min(Math.max(reversePoint, 0), duration);
+        // 计算播放了的时长
+        var played = this.isReversed
+            ? reversePoint
+            : duration - reversePoint
+
+        // TBD: 或者 detach 然后 attach ?
+        this.startPoint = this.timeline.getTime() - (duration - played) / this.getScale();
+        this.timeline.rearrage();
+
+        this.activate();
+
+        return this;
+    };
 
     return TimeEvent;
 });

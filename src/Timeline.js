@@ -84,6 +84,14 @@ define(function(require) {
         return this;
     };
 
+    Timeline.prototype.scale = function() {
+        TimeEvent.prototype.scale.apply(this, arguments);
+
+        this.rearrage();
+
+        return this;
+    };
+
     Timeline.prototype.rearrage = function() {
         var maxRelativeEndPoint = -Infinity;
         if (!this.eventList.length) {
@@ -98,18 +106,37 @@ define(function(require) {
             });
         }
         this._duration = maxRelativeEndPoint;
+        if (this.timeline) {
+            this.timeline.rearrage();
+        }
+        this.activate();
+
         return this;
     };
 
-    /**
-     * 渲染
-     * @param {number} playhead 播放进度，相对于自身时间起点的当前时间点或帧数
-     */
-    Timeline.prototype.render = function(playhead) {
-        this.time = playhead;
+    Timeline.prototype.internalRender = function(realPlayhead) {
+        var that = this;
         util.each(this.eventList, function(timeEvent, index) {
-            var scaledElapsed = (playhead - timeEvent.getStartPoint()) * timeEvent.getScale();
+            if (!timeEvent.isActive) {
+                return;
+            }
+            // TODO: scale delay from startPoint?
+            // if (!that.isReversed) {
+            //     var scaledElapsed = (realPlayhead - timeEvent.getStartPoint()) * timeEvent.getScale();
+            // }
+            // else {
+            //     var scaledElapsed = timeEvent.getDuration() - (realPlayhead - timeEvent.getStartPoint()) * timeEvent.getScale();
+            // }
+            var scaledElapsed = (realPlayhead - timeEvent.getStartPoint()) * timeEvent.getScale();
             timeEvent.render(scaledElapsed);
+        });
+    };
+
+    Timeline.prototype.activate = function() {
+        TimeEvent.prototype.activate.apply(this, arguments);
+
+        util.each(this.eventList, function(timeEvent, index) {
+            timeEvent.activate();
         });
     };
 
