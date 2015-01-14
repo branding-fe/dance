@@ -58,16 +58,16 @@ require(['Ticker'], function(Ticker) {
 require(['Dance'], function(Dance) {
     var ele1 = document.getElementById('block1');
     var ele2 = document.getElementById('block2');
-    Dance.move(ele1)
-        .duration(1000)
-        .from({
-            top: '0px',
-            left: '0px'
-        })
-        .to({
-            top: '100px',
-            left: '100px'
-        });
+    // Dance.move(ele1)
+    //     .duration(1000)
+    //     .from({
+    //         top: '0px',
+    //         left: '0px'
+    //     })
+    //     .to({
+    //         top: '100px',
+    //         left: '100px'
+    //     });
     var dance = Dance.create()
         // .scale(0.1)
         .add(
@@ -86,7 +86,7 @@ require(['Dance'], function(Dance) {
         .at(2000);
 
         setTimeout(function() {
-            dance.reverse();
+            // dance.reverse();
         }, 3000);
         window.dance = dance;
 });

@@ -147,7 +147,7 @@ define(function(require) {
     //     return this;
     // };
 
-    Move.prototype.internalRender = function(realPlayhead) {
+    Move.prototype.internalRender = function(realPlayhead, opt_supressEvent) {
         var percent;
         var duration = this.getDuration();
         if (realPlayhead >= duration) {
@@ -160,7 +160,9 @@ define(function(require) {
             percent = this.getProgress(realPlayhead / duration);
         }
 
-        this.trigger(events.BEFORE_UPDATE, percent);
+        if (!opt_supressEvent) {
+            this.trigger(events.BEFORE_UPDATE, percent);
+        }
 
         var styles = {};
         for (var key in this.betweens) {
