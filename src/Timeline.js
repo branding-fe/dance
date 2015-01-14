@@ -119,12 +119,6 @@ define(function(require) {
                 return;
             }
             // TODO: scale delay from startPoint?
-            // if (!that.isReversed) {
-            //     var scaledElapsed = (realPlayhead - timeEvent.getStartPoint()) * timeEvent.getScale();
-            // }
-            // else {
-            //     var scaledElapsed = timeEvent.getDuration() - (realPlayhead - timeEvent.getStartPoint()) * timeEvent.getScale();
-            // }
             var scaledElapsed = (realPlayhead - timeEvent.getStartPoint()) * timeEvent.getScale();
             timeEvent.render(scaledElapsed, opt_suppressEvent);
         });
@@ -133,12 +127,7 @@ define(function(require) {
     Timeline.prototype.reverse = function() {
         TimeEvent.prototype.reverse.apply(this, arguments);
 
-        var duration = this.getDuration();
-        var realPlayhead = this.isReversed ? duration - this.localPlayhead : this.localPlayhead;
-        // TODO: 将 localPlayhead 进行调整，保证动画正常进入激活状态
-        util.each(this.eventList, function(timeEvent, index) {
-            console.log('move local playhead: ' + timeEvent.localPlayhead);
-        });
+        this.seek(this.localPlayhead);
 
         return this;
     };

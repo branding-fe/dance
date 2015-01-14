@@ -229,25 +229,21 @@ define(function(require) {
      * @param {number} opt_reversePoint 反向时间点，如果没有指定就用当前时间点
      */
     TimeEvent.prototype.reverse = function(opt_reversePoint) {
-        var isReversed = this.isReversed;
         this.isReversed = !this.isReversed;
         if (!this.timeline) {
             return this;
         }
         var duration = this.getDuration();
-        var realPlayhead = isReversed ? duration - this.localPlayhead : this.localPlayhead;
         var reversePoint = opt_reversePoint != null
             ? opt_reversePoint
-            : realPlayhead;
+            : this.localPlayhead;
         // 限制 reversePoint 到 0 ~ duration 中
-        reversePoint = Math.min(Math.max(reversePoint, 0), duration);
-        // 计算播放了的时长
-        var played = isReversed ? duration - reversePoint : reversePoint;
+        var played = Math.min(Math.max(reversePoint, 0), duration);
 
         // 反转之后的已播放时长
         var playedNow = duration - played;
         this.startPoint = this.timeline.getTime() - playedNow / this.getScale();
-        // FIXME: 边界情况？
+        // FIXME: 边界情况？reverse(0) 之类的
         this.localPlayhead = playedNow;
         this.rearrange();
 
