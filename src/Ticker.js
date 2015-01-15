@@ -96,7 +96,7 @@ define(function(require) {
          * 根据帧率算出来，关系如下：interval = 1 / fps
          * @type {number}
          */
-        this.interval;
+        this.interval = 1000 / 60;
 
         /**
          * 下一动画帧请求函数
@@ -121,7 +121,7 @@ define(function(require) {
          *
          * @type {number}
          */
-        this.nextFrameTime;
+        this.nextFrameTime = this.interval;
 
         /**
          * 记录最后一次tick的时间(绝对时间)
@@ -176,6 +176,7 @@ define(function(require) {
 
         // 当前时间和预期的下一帧的时间之间的差异
         var overlap = this.time - this.nextFrameTime;
+
         // 1. 没有设置fps
         //    (1) 支持requestAnimationFrame，那么使用的是浏览器帧率
         //    (2) 不支持，使用的是60fps

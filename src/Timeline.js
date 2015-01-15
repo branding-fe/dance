@@ -34,6 +34,8 @@ define(function(require) {
         this.render = Timeline.prototype.render;
 
         this.eventList = [];
+
+        this.isAlwaysActive = true;
     }
     util.inherits(Timeline, TimeEvent);
 
@@ -112,7 +114,7 @@ define(function(require) {
         return this;
     };
 
-    Timeline.prototype.internalRender = function(realPlayhead, opt_suppressEvent) {
+    Timeline.prototype.internalRender = function(realPlayhead, opt_forceRender) {
         var that = this;
         util.each(this.eventList, function(timeEvent, index) {
             if (!timeEvent.isActive) {
@@ -120,7 +122,7 @@ define(function(require) {
             }
             // TODO: scale delay from startPoint?
             var scaledElapsed = (realPlayhead - timeEvent.getStartPoint()) * timeEvent.getScale();
-            timeEvent.render(scaledElapsed, opt_suppressEvent);
+            timeEvent.render(scaledElapsed, opt_forceRender);
         });
     };
 
@@ -141,45 +143,6 @@ define(function(require) {
         });
 
         return this;
-    };
-
-    Timeline.prototype.seek = function(targetPoint) {
-        var duration = this.getDuration();
-        // 限制 targetPoint 到 0 ~ duration 中
-        var played = Math.min(Math.max(targetPoint, 0), duration);
-
-        this.startPoint = this.timeline.getTime() - played / this.getScale();
-        this.rearrange();
-
-        this.render(played, true);
-
-        return this;
-    };
-
-    Timeline.prototype.play = function(opt_playhead) {
-        if (opt_playhead != null) {
-            this.seek(opt_playhead);
-        }
-        this.resume();
-    };
-
-    Timeline.prototype.stop = function() {
-        this.seek(0);
-        this.pause();
-    };
-
-    Timeline.prototype.pause = function(opt_playhead) {
-        if (opt_playhead != null) {
-            this.seek(opt_playhead);
-        }
-        // TODO
-    };
-
-    Timeline.prototype.resume = function(opt_playhead) {
-        if (opt_playhead != null) {
-            this.seek(opt_playhead);
-        }
-        // TODO
     };
 
     Timeline.prototype.setPlaybackRate

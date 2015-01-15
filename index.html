@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Dance - A JavaScript animation framework.</title>
     <script type="text/javascript" src="http://s1.bdstatic.com/r/www/cache/ecom/esl/1-8-2/esl.js"></script>
+    <script type="text/javascript" src="http://cdn.staticfile.org/jquery/1.11.1/jquery.min.js"></script>
     <style type="text/css">
     body {padding:0;margin:0;}
     #ticker {
@@ -13,6 +14,8 @@
     }
     #canvas {
         position: relative;
+        height: 200px;
+        margin: 10px;
     }
     .block {
         position: absolute;
@@ -26,7 +29,34 @@
     }
     #block2 {
         background: #1ABC9C;
-        left: 200px;
+    }
+    .controls {
+        padding: 10px;
+    }
+    .controls a {
+        background: #3498DB;
+        display: inline-block;
+        padding: 5px 10px;
+        text-decoration: none;
+        margin-right: 10px;
+        color: white;
+    }
+    #bar {
+        cursor: pointer;
+        margin: 20px 10px 10px;
+        background: #369;
+        width: 316px;
+        height: 20px;
+        position: relative;
+    }
+    #bar-button {
+        cursor: pointer;
+        width: 20px;
+        height: 20px;
+        background: #D35400;
+        position: absolute;
+        top: 0;
+        left: 0;
     }
     </style>
 </head>
@@ -35,6 +65,14 @@
 <div id="canvas">
     <div id="block1" class="block"></div>
     <div id="block2" class="block"></div>
+</div>
+<div id="bar"><div id="bar-button"></div></div>
+<div id="controls" class="controls">
+    <a id="play" href="#">播放</a>
+    <a id="pause" href="#">暂停</a>
+    <a id="resume" href="#">继续</a>
+    <a id="reverse" href="#">反转</a>
+    <a id="stop" href="#">停止</a>
 </div>
 <script type="text/javascript">
 require.config({
@@ -69,26 +107,32 @@ require(['Dance'], function(Dance) {
     //         left: '100px'
     //     });
     var dance = Dance.create()
-        // .scale(0.1)
-        .add(
-            Dance.move(ele2)
-                .to({ left: '100px' })
-                .duration(1000)
-        )
+        .add(Dance.move(ele1).to({ top: '100px' }).duration(1000))
+        .at(0)
+        .add(Dance.move(ele1).to({ left: '100px' }).duration(1000))
         .at(1000)
-        .add(
-            Dance.move(ele2)
-                .from({ top: '0px' })
-                .to({ top: '100px' })
-                .duration(1000)
+        .add(Dance.move(ele2).to({ left: '100px' }).duration(1000))
+        .at(0)
+        .add(Dance.move(ele2).from({ top: '0px' }).to({ top: '100px' }).duration(1000))
+        .at(1000);
 
-        )
-        .at(2000);
+    $('#controls').on('click', 'a', function() {
+        var id = $(this).attr('id');
+        dance[id]();
+        return false;
+    });
 
-        setTimeout(function() {
-            // dance.reverse();
-        }, 3000);
-        window.dance = dance;
+    $('#bar').click(function(e) {
+        var parentOffset = $('#bar').offset();
+        var left = e.pageX - parentOffset.left;
+        var totalWidth = $('#bar').width();
+        var buttonLeft = Math.min(Math.max(10, left), totalWidth - 10);
+        $('#bar-button').css('left', buttonLeft);
+        var progress = dance.getDuration() * left / totalWidth;
+        dance.seek(progress);
+    });
+
+    window.dance = dance;
 });
 </script>
 </body>

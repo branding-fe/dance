@@ -63,10 +63,23 @@ define(function(require) {
         this.timeline;
 
         /**
+         * 是否处于暂停状态
+         * @type {boolean}
+         */
+        this.isPaused = false;
+
+
+        /**
          * 是否处于运行状态
          * @type {boolean}
          */
         this.isActive = true;
+
+        /**
+         * 是否处于永久运行状态，这个的值会影响 isActive
+         * @type {boolean}
+         */
+        this.isAlwaysActive = false;
 
         /**
          * 当前时间或帧数(相对于自身startPoint)
@@ -110,7 +123,7 @@ define(function(require) {
 
     TimeEvent.prototype.scale = function(scale) {
         this._scale = scale;
-        // TODO;
+        // TODO; scale pauseTime ?
         return this;
     };
 
@@ -158,18 +171,22 @@ define(function(require) {
 
     /**
      * 渲染
-     * 1. opt_suppressEvent=true(例如seek(xxx)) 不触发开始或者结束事件，那么需要在下一次移动时触发
-     * 2. opt_suppressEvent=false 那么立即触发事件
+     * 1. opt_forceRender=true(例如seek(xxx)) 不触发开始或者结束事件，那么需要在下一次移动时触发
+     * 2. opt_forceRender=false 那么立即触发事件
      */
-    TimeEvent.prototype.render = function(playhead, opt_suppressEvent) {
+    TimeEvent.prototype.render = function(playhead, opt_forceRender) {
         this.time = playhead;
+
+        if (!opt_forceRender && this.isPaused) {
+            return this;
+        }
 
         // TODO: zero-duration case
         // 如果时zero-duration的move，如果正好落在此处，有两种情况
 
         var duration = this.getDuration();
-        // 限定在 0 ~ duration 之间
-        var localPlayhead = Math.min(Math.max(playhead, -TINY_NUMBER), duration + TINY_NUMBER);
+        // 限定在 0 ~ Infinity 之间
+        var localPlayhead = Math.max(playhead, -TINY_NUMBER);
 
         // 不处于激活状态或者跟上一次相同，不需要渲染
         var lastLocalPlayhead = this.localPlayhead;
@@ -179,15 +196,15 @@ define(function(require) {
 
         // 从区域内离开都是"完成"
         var isFinished = false;
-        if (!opt_suppressEvent) {
+        if (!opt_forceRender) {
             if (localPlayhead >= duration && lastLocalPlayhead < duration
                 || localPlayhead <= 0 && lastLocalPlayhead > 0
             ) {
                 isFinished = true;
-                if (localPlayhead <= 0) {
+                if (localPlayhead === 0) {
                     localPlayhead = -TINY_NUMBER;
                 }
-                else if (localPlayhead >= duration) {
+                else if (localPlayhead === duration) {
                     localPlayhead = duration + TINY_NUMBER;
                 }
             }
@@ -202,7 +219,7 @@ define(function(require) {
 
         // 如果是逆向，playhead 反转
         var realPlayhead = this.isReversed ? duration - localPlayhead : localPlayhead;
-        this.internalRender(realPlayhead, opt_suppressEvent);
+        this.internalRender(realPlayhead, opt_forceRender);
 
         if (isFinished) {
             this.deactivate();
@@ -214,14 +231,16 @@ define(function(require) {
         return this;
     };
 
-    TimeEvent.prototype.internalRender = function(realPlayhead, opt_suppressEvent) {};
+    TimeEvent.prototype.internalRender = function(realPlayhead, opt_forceRender) {};
 
     TimeEvent.prototype.activate = function() {
         this.isActive = true;
     };
 
     TimeEvent.prototype.deactivate = function() {
-        this.isActive = false;
+        if (!this.isAlwaysActive) {
+            this.isActive = false;
+        }
     };
 
     /**
@@ -248,6 +267,68 @@ define(function(require) {
         this.rearrange();
 
         return this;
+    };
+
+    TimeEvent.prototype.seek = function(targetPoint) {
+        var duration = this.getDuration();
+        // 限制 targetPoint 到 0 ~ duration 中
+        var played = Math.min(Math.max(targetPoint, 0), duration);
+
+        this.startPoint = this.timeline.getTime() - played / this.getScale();
+        if (this.isPaused) {
+            this.pausePoint = played;
+        }
+        this.rearrange();
+
+        this.render(played, true);
+
+        return this;
+    };
+
+    TimeEvent.prototype.play = function(opt_playhead) {
+        if (this.isPaused) {
+            if (opt_playhead != null) {
+                this.seek(opt_playhead);
+            }
+            this.resume();
+        }
+        else {
+            this.seek(opt_playhead || 0);
+        }
+
+        return this;
+    };
+
+    TimeEvent.prototype.stop = function() {
+        this.seek(0);
+        this.pause();
+
+        return this;
+    };
+
+    TimeEvent.prototype.pause = function(opt_playhead) {
+        if (opt_playhead != null) {
+            this.seek(opt_playhead);
+        }
+        this.pausePoint = this.localPlayhead;
+        this.isPaused = true;
+
+        return this;
+    };
+
+    TimeEvent.prototype.resume = function() {
+        if (!this.isPaused) {
+            return this;
+        }
+
+        var duration = this.getDuration();
+        // 限制到 0 ~ duration 中
+        var played = Math.min(Math.max(this.pausePoint, 0), duration);
+        this.startPoint = this.timeline.getTime() - played / this.getScale();
+        this.isPaused = false;
+        this.pausePoint = null;
+
+        this.seek(played);
     };
 
     return TimeEvent;
