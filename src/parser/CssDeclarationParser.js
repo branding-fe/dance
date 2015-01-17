@@ -51,7 +51,7 @@ define(function(require) {
                 value = value + '';
                 return {
                     value: parseFloat(value),
-                    unit: value.replace(/[\d]*\d+/, '')
+                    unit: value.replace(/[\d.]+/, '')
                 };
             }
         }

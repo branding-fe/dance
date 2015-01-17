@@ -97,6 +97,8 @@ define(function(require) {
          * @type {boolean}
          */
         this.isReversed = false;
+
+        this.isRealReversed = false;
     }
     util.inherits(TimeEvent, EventDispatcher);
 
@@ -268,12 +270,24 @@ define(function(require) {
         }
     };
 
+    TimeEvent.prototype.setRealReverse = function(opt_parentRealReversed) {
+        if (opt_parentRealReversed != null) {
+            if (this.isReversed) {
+                this.isRealReversed = !opt_parentRealReversed;
+            }
+        }
+        else {
+            this.isRealReversed = !this.isRealReversed;
+        }
+    };
+
     /**
      * 时光逆流
      * @param {number} opt_reversePoint 反向时间点，如果没有指定就用当前时间点
      */
     TimeEvent.prototype.reverse = function(opt_reversePoint) {
         this.isReversed = !this.isReversed;
+        this.setRealReverse();
         if (!this.timeline) {
             return this;
         }
