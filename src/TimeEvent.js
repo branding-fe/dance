@@ -63,11 +63,16 @@ define(function(require) {
         this.timeline;
 
         /**
+         * 缓动函数
+         * @type {Function}
+         */
+        this._ease;
+
+        /**
          * 是否处于暂停状态
          * @type {boolean}
          */
         this.isPaused = false;
-
 
         /**
          * 是否处于运行状态
@@ -97,6 +102,8 @@ define(function(require) {
          * @type {boolean}
          */
         this.isReversed = false;
+
+        this.isRealReversed = false;
     }
     util.inherits(TimeEvent, EventDispatcher);
 
@@ -158,6 +165,26 @@ define(function(require) {
 
             return this;
         };
+
+    TimeEvent.prototype.ease = function(ease) {
+        this._ease = ease;
+
+        return this;
+    };
+
+    TimeEvent.prototype.getProgress = function(timePercent) {
+        if (this._ease) {
+            if (this.isRealReversed) {
+                return 1 - this._ease(1 - timePercent);
+            }
+            else {
+                return this._ease(timePercent);
+            }
+        }
+        else {
+            return timePercent;
+        }
+    };
 
     /**
      * 渲染
@@ -268,19 +295,31 @@ define(function(require) {
         }
     };
 
+    TimeEvent.prototype.setRealReverse = function(opt_parentRealReversed) {
+        if (opt_parentRealReversed != null) {
+            if (this.isReversed) {
+                this.isRealReversed = !opt_parentRealReversed;
+            }
+        }
+        else {
+            this.isRealReversed = !this.isRealReversed;
+        }
+    };
+
     /**
      * 时光逆流
      * @param {number} opt_reversePoint 反向时间点，如果没有指定就用当前时间点
      */
     TimeEvent.prototype.reverse = function(opt_reversePoint) {
         this.isReversed = !this.isReversed;
+        this.setRealReverse();
         if (!this.timeline) {
             return this;
         }
         var duration = this.getDuration();
         var reversePoint = opt_reversePoint != null
             ? opt_reversePoint
-            : this.playhead;
+            : (this.isPaused ? this.pausePoint : this.playhead);
         // 限制 reversePoint 到 0 ~ duration 中
         var played = Math.min(Math.max(reversePoint, 0), duration);
 
@@ -328,18 +367,39 @@ define(function(require) {
         return this;
     };
 
-    TimeEvent.prototype.play = function(opt_playhead) {
+    TimeEvent.prototype.play = function(opt_start, opt_end, options) {
         if (this.isPaused) {
-            if (opt_playhead != null) {
-                this.seek(opt_playhead);
+            if (opt_start != null) {
+                this.seek(opt_start);
             }
             this.resume();
         }
         else {
-            this.seek(opt_playhead || 0);
+            var duration = this.getDuration();
+            if (this.playhead < 0 || this.playhead >= duration) {
+                this.seek(opt_start || 0);
+            }
         }
 
         return this;
+    };
+
+    TimeEvent.prototype.playForward = function() {
+        if (this.isRealReversed) {
+            this.reverse().play(0);
+        }
+        else {
+            this.play(0);
+        }
+    };
+
+    TimeEvent.prototype.playBackward = function() {
+        if (this.isRealReversed) {
+            this.play(0);
+        }
+        else {
+            this.reverse().play(0);
+        }
     };
 
     TimeEvent.prototype.stop = function() {

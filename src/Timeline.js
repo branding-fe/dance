@@ -33,7 +33,11 @@ define(function(require) {
         // render函数调用频繁，将render函数放到this上，减少prototype的查找时间
         this.render = Timeline.prototype.render;
 
-        this.eventList = [];
+        this._lastTimeEvent;
+
+        this.listHead = null;
+
+        this.listTail = null;
 
         this.isAlwaysActive = true;
     }
@@ -60,11 +64,141 @@ define(function(require) {
             // FIXME: this.startPoint 同样需要更新
             timeEvent.setTimeline(this);
             timeEvent.setStartPoint(this.playhead);
+            timeEvent.setRealReverse(this.isRealReversed);
             this._lastTimeEvent = timeEvent;
-            this.eventList.push(timeEvent);
+            this.enqueue(timeEvent);
             this.rearrange();
             return this;
         };
+
+    Timeline.prototype.traverse = function(callback) {
+        if (this.listHead) {
+            var timeEvent = this.listHead;
+            while (timeEvent) {
+                var ret = callback(timeEvent);
+                if (ret === util.breaker) {
+                    break;
+                }
+                timeEvent = timeEvent.next;
+            }
+        }
+    };
+
+    Timeline.prototype.reverseTraverse = function(callback) {
+        if (this.listTail) {
+            var timeEvent = this.listTail;
+            while (timeEvent) {
+                var ret = callback(timeEvent);
+                if (ret === util.breaker) {
+                    break;
+                }
+                timeEvent = timeEvent.prev;
+            }
+        }
+    };
+
+    Timeline.prototype.outInTraverse = function(point, callback) {
+        var isBreaked = false;
+        var ret;
+        var timeEvent;
+        if (this.listHead) {
+            timeEvent = this.listHead;
+            // FIXME: 临界点
+            while (timeEvent) {
+                if (point < timeEvent.getStartPoint()
+                    || (!this.isRealReversed
+                        && point === timeEvent.getStartPoint()
+                    )
+                ) {
+                    break;
+                }
+                ret = callback(timeEvent);
+                if (ret === util.breaker) {
+                    isBreaked = true;
+                    break;
+                }
+                timeEvent = timeEvent.next;
+            }
+        }
+        if (isBreaked) {
+            return this;
+        }
+        if (this.listTail) {
+            timeEvent = this.listTail;
+            while (timeEvent) {
+                if (point > timeEvent.getStartPoint()
+                    || (this.isRealReversed
+                        && point === timeEvent.getStartPoint()
+                    )
+                ) {
+                    break;
+                }
+                ret = callback(timeEvent);
+                if (ret === util.breaker) {
+                    break;
+                }
+                timeEvent = timeEvent.prev;
+            }
+        }
+        return this;
+    };
+
+    Timeline.prototype.enqueue = function(timeEvent) {
+        if (this.listTail == null) {
+            this.listHead = timeEvent;
+            this.listTail = timeEvent;
+            timeEvent.prev = null;
+            timeEvent.next = null;
+        }
+        else {
+            var that = this;
+            var startPoint = timeEvent.getStartPoint();
+            var isFound = false;
+            this.reverseTraverse(function(item) {
+                if (startPoint >= item.getStartPoint()) {
+                    isFound = true;
+                    timeEvent.prev = item;
+                    timeEvent.next = item.next;
+                    item.next = timeEvent;
+                    return util.breaker;
+                }
+            });
+            if (!isFound) {
+                timeEvent.prev = null;
+                timeEvent.next = that.listHead;
+                that.listHead = timeEvent;
+            }
+            if (timeEvent.next) {
+                timeEvent.next.prev = timeEvent;
+            }
+            else {
+                this.listTail = timeEvent;
+            }
+        }
+    };
+
+    Timeline.prototype.dequeue = function(timeEvent) {
+        if (timeEvent.timeline === this) {
+            if (timeEvent.prev) {
+                timeEvent.prev.next = timeEvent.next;
+            }
+            else if (this.listHead === timeEvent) {
+                this.listHead = timeEvent.next;
+            }
+            if (timeEvent.next) {
+                timeEvent.next.prev = timeEvent.prev;
+            }
+            else if (this.listTail === timeEvent) {
+                this.listTail = timeEvent.prev;
+            }
+            timeEvent.prev = null;
+            timeEvent.next = null;
+            timeEvent.setTimeline(null);
+        }
+        if (this._lastTimeEvent === timeEvent) {
+            this._lastTimeEvent = null;
+        }
+    };
 
     Timeline.prototype.at = function(timeOrFrame) {
         if (this._lastTimeEvent) {
@@ -76,12 +210,9 @@ define(function(require) {
     };
 
     Timeline.prototype.remove = function(target) {
-        util.each(this.eventList, function(timeEvent, index, eventList) {
-            if (target === timeEvent) {
-                eventList.splice(index, 1);
-                return util.breaker;
-            }
-        });
+        this.dequeue(target);
+        this.rearrange();
+
         return this;
     };
 
@@ -95,18 +226,14 @@ define(function(require) {
 
     Timeline.prototype.rearrange = function() {
         var maxRelativeEndPoint = -Infinity;
-        if (!this.eventList.length) {
-            maxRelativeEndPoint = 0;
-        }
-        else {
-            util.each(this.eventList, function(timeEvent, index) {
-                var relativeEndPoint = timeEvent.getStartPoint() + timeEvent.getDuration() / timeEvent.getScale();
-                if (relativeEndPoint > maxRelativeEndPoint) {
-                    maxRelativeEndPoint = relativeEndPoint;
-                }
-            });
-        }
-        this._duration = maxRelativeEndPoint;
+        this.traverse(function(timeEvent) {
+            var relativeEndPoint = timeEvent.getStartPoint() + timeEvent.getDuration() / timeEvent.getScale();
+            if (relativeEndPoint > maxRelativeEndPoint) {
+                maxRelativeEndPoint = relativeEndPoint;
+            }
+        });
+        this._duration = Math.max(0, maxRelativeEndPoint);
+
         if (this.timeline) {
             this.timeline.rearrange();
         }
@@ -117,7 +244,18 @@ define(function(require) {
 
     Timeline.prototype.internalRender = function(realPlayhead, opt_forceRender) {
         var that = this;
-        util.each(this.eventList, function(timeEvent, index) {
+        var traverse = opt_forceRender
+            ? util.bind(this.outInTraverse, this, realPlayhead)
+            : (this.isRealReversed ? this.reverseTraverse : this.traverse);
+        var duration = this.getDuration();
+        var progress = Math.max(Math.min(realPlayhead, duration), 0) / duration;
+        // 只在合法的区间内使用 ease 函数
+        // XXX: 虽然时间轴支持 ease，但谨慎使用，不要使用有回弹和超出范围的缓动函数，否则会出现问题
+        if (this._ease && realPlayhead >= 0 && realPlayhead <= duration) {
+            progress = this.getProgress(progress);
+            realPlayhead = realPlayhead * progress;
+        }
+        traverse.call(this, function(timeEvent) {
             if (!timeEvent.isActive) {
                 return;
             }
@@ -125,9 +263,15 @@ define(function(require) {
             var scaledElapsed = (realPlayhead - timeEvent.getStartPoint()) * timeEvent.getScale();
             timeEvent.render(scaledElapsed, opt_forceRender);
         });
-        var duration = this.getDuration();
-        var progress = Math.max(Math.min(realPlayhead, duration), 0) / duration;
         this.trigger(events.PROGRESS, progress, this.playhead);
+    };
+
+    Timeline.prototype.setRealReverse = function() {
+        TimeEvent.prototype.setRealReverse.apply(this, arguments);
+
+        this.traverse(function(timeEvent) {
+            timeEvent.setRealReverse();
+        });
     };
 
     Timeline.prototype.reverse = function() {
@@ -138,11 +282,18 @@ define(function(require) {
         return this;
     };
 
+    Timeline.prototype.childEase = function(ease) {
+        this.traverse(function(timeEvent) {
+            timeEvent.ease(ease);
+        });
+
+        return this;
+    };
 
     Timeline.prototype.activate = function() {
         TimeEvent.prototype.activate.apply(this, arguments);
 
-        util.each(this.eventList, function(timeEvent, index) {
+        this.traverse(function(timeEvent) {
             timeEvent.activate();
         });
 

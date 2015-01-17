@@ -634,12 +634,14 @@ define('TimeEvent', [
         this._duration = Infinity;
         this._scale = 1;
         this.timeline;
+        this._ease;
         this.isPaused = false;
         this.isActive = true;
         this.isAlwaysActive = false;
         this.playhead = 0;
         this.isPlayheadDirty = true;
         this.isReversed = false;
+        this.isRealReversed = false;
     }
     util.inherits(TimeEvent, EventDispatcher);
     TimeEvent.prototype.getStartPoint = function () {
@@ -684,6 +686,21 @@ define('TimeEvent', [
     TimeEvent.prototype.delay = TimeEvent.prototype.after = function (timeOrFrame) {
         this.delay = timeOrFrame;
         return this;
+    };
+    TimeEvent.prototype.ease = function (ease) {
+        this._ease = ease;
+        return this;
+    };
+    TimeEvent.prototype.getProgress = function (timePercent) {
+        if (this._ease) {
+            if (this.isRealReversed) {
+                return 1 - this._ease(1 - timePercent);
+            } else {
+                return this._ease(timePercent);
+            }
+        } else {
+            return timePercent;
+        }
     };
     TimeEvent.prototype.render = function (playhead, opt_forceRender) {
         var lastPlayhead = this.playhead;
@@ -747,13 +764,23 @@ define('TimeEvent', [
             this.isActive = false;
         }
     };
+    TimeEvent.prototype.setRealReverse = function (opt_parentRealReversed) {
+        if (opt_parentRealReversed != null) {
+            if (this.isReversed) {
+                this.isRealReversed = !opt_parentRealReversed;
+            }
+        } else {
+            this.isRealReversed = !this.isRealReversed;
+        }
+    };
     TimeEvent.prototype.reverse = function (opt_reversePoint) {
         this.isReversed = !this.isReversed;
+        this.setRealReverse();
         if (!this.timeline) {
             return this;
         }
         var duration = this.getDuration();
-        var reversePoint = opt_reversePoint != null ? opt_reversePoint : this.playhead;
+        var reversePoint = opt_reversePoint != null ? opt_reversePoint : this.isPaused ? this.pausePoint : this.playhead;
         var played = Math.min(Math.max(reversePoint, 0), duration);
         var playedNow = duration - played;
         this.startPoint = this.timeline.getTime() - playedNow / this.getScale();
@@ -778,16 +805,33 @@ define('TimeEvent', [
         this.seek(duration * actualProgress);
         return this;
     };
-    TimeEvent.prototype.play = function (opt_playhead) {
+    TimeEvent.prototype.play = function (opt_start, opt_end, options) {
         if (this.isPaused) {
-            if (opt_playhead != null) {
-                this.seek(opt_playhead);
+            if (opt_start != null) {
+                this.seek(opt_start);
             }
             this.resume();
         } else {
-            this.seek(opt_playhead || 0);
+            var duration = this.getDuration();
+            if (this.playhead < 0 || this.playhead >= duration) {
+                this.seek(opt_start || 0);
+            }
         }
         return this;
+    };
+    TimeEvent.prototype.playForward = function () {
+        if (this.isRealReversed) {
+            this.reverse().play(0);
+        } else {
+            this.play(0);
+        }
+    };
+    TimeEvent.prototype.playBackward = function () {
+        if (this.isRealReversed) {
+            this.play(0);
+        } else {
+            this.reverse().play(0);
+        }
     };
     TimeEvent.prototype.stop = function () {
         this.seek(0);
@@ -960,7 +1004,9 @@ define('Timeline', [
     function Timeline() {
         TimeEvent.apply(this, arguments);
         this.render = Timeline.prototype.render;
-        this.eventList = [];
+        this._lastTimeEvent;
+        this.listHead = null;
+        this.listTail = null;
         this.isAlwaysActive = true;
     }
     util.inherits(Timeline, TimeEvent);
@@ -976,10 +1022,122 @@ define('Timeline', [
         }
         timeEvent.setTimeline(this);
         timeEvent.setStartPoint(this.playhead);
+        timeEvent.setRealReverse(this.isRealReversed);
         this._lastTimeEvent = timeEvent;
-        this.eventList.push(timeEvent);
+        this.enqueue(timeEvent);
         this.rearrange();
         return this;
+    };
+    Timeline.prototype.traverse = function (callback) {
+        if (this.listHead) {
+            var timeEvent = this.listHead;
+            while (timeEvent) {
+                var ret = callback(timeEvent);
+                if (ret === util.breaker) {
+                    break;
+                }
+                timeEvent = timeEvent.next;
+            }
+        }
+    };
+    Timeline.prototype.reverseTraverse = function (callback) {
+        if (this.listTail) {
+            var timeEvent = this.listTail;
+            while (timeEvent) {
+                var ret = callback(timeEvent);
+                if (ret === util.breaker) {
+                    break;
+                }
+                timeEvent = timeEvent.prev;
+            }
+        }
+    };
+    Timeline.prototype.outInTraverse = function (point, callback) {
+        var isBreaked = false;
+        var ret;
+        var timeEvent;
+        if (this.listHead) {
+            timeEvent = this.listHead;
+            while (timeEvent) {
+                if (point < timeEvent.getStartPoint() || !this.isRealReversed && point === timeEvent.getStartPoint()) {
+                    break;
+                }
+                ret = callback(timeEvent);
+                if (ret === util.breaker) {
+                    isBreaked = true;
+                    break;
+                }
+                timeEvent = timeEvent.next;
+            }
+        }
+        if (isBreaked) {
+            return this;
+        }
+        if (this.listTail) {
+            timeEvent = this.listTail;
+            while (timeEvent) {
+                if (point > timeEvent.getStartPoint() || this.isRealReversed && point === timeEvent.getStartPoint()) {
+                    break;
+                }
+                ret = callback(timeEvent);
+                if (ret === util.breaker) {
+                    break;
+                }
+                timeEvent = timeEvent.prev;
+            }
+        }
+        return this;
+    };
+    Timeline.prototype.enqueue = function (timeEvent) {
+        if (this.listTail == null) {
+            this.listHead = timeEvent;
+            this.listTail = timeEvent;
+            timeEvent.prev = null;
+            timeEvent.next = null;
+        } else {
+            var that = this;
+            var startPoint = timeEvent.getStartPoint();
+            var isFound = false;
+            this.reverseTraverse(function (item) {
+                if (startPoint >= item.getStartPoint()) {
+                    isFound = true;
+                    timeEvent.prev = item;
+                    timeEvent.next = item.next;
+                    item.next = timeEvent;
+                    return util.breaker;
+                }
+            });
+            if (!isFound) {
+                timeEvent.prev = null;
+                timeEvent.next = that.listHead;
+                that.listHead = timeEvent;
+            }
+            if (timeEvent.next) {
+                timeEvent.next.prev = timeEvent;
+            } else {
+                this.listTail = timeEvent;
+            }
+        }
+    };
+    Timeline.prototype.dequeue = function (timeEvent) {
+        if (timeEvent.timeline === this) {
+            if (timeEvent.prev) {
+                timeEvent.prev.next = timeEvent.next;
+            } else if (this.listHead === timeEvent) {
+                this.listHead = timeEvent.next;
+            }
+            if (timeEvent.next) {
+                timeEvent.next.prev = timeEvent.prev;
+            } else if (this.listTail === timeEvent) {
+                this.listTail = timeEvent.prev;
+            }
+            timeEvent.prev = null;
+            timeEvent.next = null;
+            timeEvent.setTimeline(null);
+        }
+        if (this._lastTimeEvent === timeEvent) {
+            this._lastTimeEvent = null;
+        }
     };
     Timeline.prototype.at = function (timeOrFrame) {
         if (this._lastTimeEvent) {
@@ -989,12 +1147,8 @@ define('Timeline', [
         return this;
     };
     Timeline.prototype.remove = function (target) {
-        util.each(this.eventList, function (timeEvent, index, eventList) {
-            if (target === timeEvent) {
-                eventList.splice(index, 1);
-                return util.breaker;
-            }
-        });
+        this.dequeue(target);
+        this.rearrange();
         return this;
     };
     Timeline.prototype.scale = function () {
@@ -1004,17 +1158,13 @@ define('Timeline', [
     };
     Timeline.prototype.rearrange = function () {
         var maxRelativeEndPoint = -Infinity;
-        if (!this.eventList.length) {
-            maxRelativeEndPoint = 0;
-        } else {
-            util.each(this.eventList, function (timeEvent, index) {
-                var relativeEndPoint = timeEvent.getStartPoint() + timeEvent.getDuration() / timeEvent.getScale();
-                if (relativeEndPoint > maxRelativeEndPoint) {
-                    maxRelativeEndPoint = relativeEndPoint;
-                }
-            });
-        }
-        this._duration = maxRelativeEndPoint;
+        this.traverse(function (timeEvent) {
+            var relativeEndPoint = timeEvent.getStartPoint() + timeEvent.getDuration() / timeEvent.getScale();
+            if (relativeEndPoint > maxRelativeEndPoint) {
+                maxRelativeEndPoint = relativeEndPoint;
+            }
+        });
+        this._duration = Math.max(0, maxRelativeEndPoint);
         if (this.timeline) {
             this.timeline.rearrange();
         }
@@ -1023,25 +1173,42 @@ define('Timeline', [
     };
     Timeline.prototype.internalRender = function (realPlayhead, opt_forceRender) {
         var that = this;
-        util.each(this.eventList, function (timeEvent, index) {
+        var traverse = opt_forceRender ? util.bind(this.outInTraverse, this, realPlayhead) : this.isRealReversed ? this.reverseTraverse : this.traverse;
+        var duration = this.getDuration();
+        var progress = Math.max(Math.min(realPlayhead, duration), 0) / duration;
+        if (this._ease && realPlayhead >= 0 && realPlayhead <= duration) {
+            progress = this.getProgress(progress);
+            realPlayhead = realPlayhead * progress;
+        }
+        traverse.call(this, function (timeEvent) {
             if (!timeEvent.isActive) {
                 return;
             }
             var scaledElapsed = (realPlayhead - timeEvent.getStartPoint()) * timeEvent.getScale();
             timeEvent.render(scaledElapsed, opt_forceRender);
         });
-        var duration = this.getDuration();
-        var progress = Math.max(Math.min(realPlayhead, duration), 0) / duration;
         this.trigger(events.PROGRESS, progress, this.playhead);
+    };
+    Timeline.prototype.setRealReverse = function () {
+        TimeEvent.prototype.setRealReverse.apply(this, arguments);
+        this.traverse(function (timeEvent) {
+            timeEvent.setRealReverse();
+        });
     };
     Timeline.prototype.reverse = function () {
         TimeEvent.prototype.reverse.apply(this, arguments);
         this.seek(this.playhead);
         return this;
     };
+    Timeline.prototype.childEase = function (ease) {
+        this.traverse(function (timeEvent) {
+            timeEvent.ease(ease);
+        });
+        return this;
+    };
     Timeline.prototype.activate = function () {
         TimeEvent.prototype.activate.apply(this, arguments);
-        util.each(this.eventList, function (timeEvent, index) {
+        this.traverse(function (timeEvent) {
             timeEvent.activate();
         });
         return this;
@@ -1094,7 +1261,7 @@ define('parser/CssDeclarationParser', [
                 value = value + '';
                 return {
                     value: parseFloat(value),
-                    unit: value.replace(/[\d]*\d+/, '')
+                    unit: value.replace(/[\d.]+/, '')
                 };
             }
         }
@@ -1240,7 +1407,6 @@ define('Move', [
         this.customRender = options['render'];
         this.render = Move.prototype.render;
         this.betweens = {};
-        this._ease;
     }
     util.inherits(Move, TimeEvent);
     Move.prototype.to = function (dest) {
@@ -1264,17 +1430,6 @@ define('Move', [
     Move.prototype.between = function (src, dest) {
         this.from(src).to(dest);
         return this;
-    };
-    Move.prototype.ease = function (ease) {
-        this._ease = ease;
-        return this;
-    };
-    Move.prototype.getProgress = function (timePercent) {
-        if (this._ease) {
-            return this._ease(timePercent);
-        } else {
-            return timePercent;
-        }
     };
     Move.prototype.internalRender = function (realPlayhead, opt_forceRender) {
         var percent;
