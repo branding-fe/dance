@@ -123,6 +123,7 @@ require(['Dance'], function(Dance) {
     //         left: '100px'
     //     });
     var dance = Dance.create()
+        .ease(Dance.wave('ease-in'))
         .add(Dance.move(ele1).to({ top: '100px' }).duration(1000))
         .at(0)
         .add(Dance.move(ele1).to({ left: '100px' }).duration(1000).ease(Dance.wave('easeInOutCubic')))
@@ -138,6 +139,7 @@ require(['Dance'], function(Dance) {
 
     var totalBarWidth = $('#bar').width() - 20;
     dance.addListener('progress', function(progress) {
+        console.log(progress);
         var buttonLeft = Math.min(Math.max(0, totalBarWidth * progress), totalBarWidth);
         $('#bar-button').css('left', buttonLeft);
     });

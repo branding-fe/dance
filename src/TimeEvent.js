@@ -63,11 +63,16 @@ define(function(require) {
         this.timeline;
 
         /**
+         * 缓动函数
+         * @type {Function}
+         */
+        this._ease;
+
+        /**
          * 是否处于暂停状态
          * @type {boolean}
          */
         this.isPaused = false;
-
 
         /**
          * 是否处于运行状态
@@ -160,6 +165,26 @@ define(function(require) {
 
             return this;
         };
+
+    TimeEvent.prototype.ease = function(ease) {
+        this._ease = ease;
+
+        return this;
+    };
+
+    TimeEvent.prototype.getProgress = function(timePercent) {
+        if (this._ease) {
+            if (this.isRealReversed) {
+                return 1 - this._ease(1 - timePercent);
+            }
+            else {
+                return this._ease(timePercent);
+            }
+        }
+        else {
+            return timePercent;
+        }
+    };
 
     /**
      * 渲染
@@ -357,6 +382,24 @@ define(function(require) {
         }
 
         return this;
+    };
+
+    TimeEvent.prototype.playForward = function() {
+        if (this.isRealReversed) {
+            this.reverse().play(0);
+        }
+        else {
+            this.play(0);
+        }
+    };
+
+    TimeEvent.prototype.playBackward = function() {
+        if (this.isRealReversed) {
+            this.play(0);
+        }
+        else {
+            this.reverse().play(0);
+        }
     };
 
     TimeEvent.prototype.stop = function() {

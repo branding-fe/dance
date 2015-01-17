@@ -52,12 +52,6 @@ define(function(require) {
          * 变化分量
          */
         this.betweens = {};
-
-        /**
-         * 缓动函数
-         * @type {Function}
-         */
-        this._ease;
     }
     util.inherits(Move, TimeEvent);
 
@@ -87,21 +81,6 @@ define(function(require) {
         this.from(src).to(dest);
 
         return this;
-    };
-
-    Move.prototype.ease = function(ease) {
-        this._ease = ease;
-
-        return this;
-    };
-
-    Move.prototype.getProgress = function(timePercent) {
-        if (this._ease) {
-            return this._ease(timePercent);
-        }
-        else {
-            return timePercent;
-        }
     };
 
     Move.prototype.internalRender = function(realPlayhead, opt_forceRender) {

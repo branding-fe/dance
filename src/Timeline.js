@@ -247,6 +247,14 @@ define(function(require) {
         var traverse = opt_forceRender
             ? util.bind(this.outInTraverse, this, realPlayhead)
             : (this.isRealReversed ? this.reverseTraverse : this.traverse);
+        var duration = this.getDuration();
+        var progress = Math.max(Math.min(realPlayhead, duration), 0) / duration;
+        // 只在合法的区间内使用 ease 函数
+        // XXX: 虽然时间轴支持 ease，但谨慎使用，不要使用有回弹和超出范围的缓动函数，否则会出现问题
+        if (this._ease && realPlayhead >= 0 && realPlayhead <= duration) {
+            progress = this.getProgress(progress);
+            realPlayhead = realPlayhead * progress;
+        }
         traverse.call(this, function(timeEvent) {
             if (!timeEvent.isActive) {
                 return;
@@ -255,8 +263,6 @@ define(function(require) {
             var scaledElapsed = (realPlayhead - timeEvent.getStartPoint()) * timeEvent.getScale();
             timeEvent.render(scaledElapsed, opt_forceRender);
         });
-        var duration = this.getDuration();
-        var progress = Math.max(Math.min(realPlayhead, duration), 0) / duration;
         this.trigger(events.PROGRESS, progress, this.playhead);
     };
 
@@ -276,6 +282,13 @@ define(function(require) {
         return this;
     };
 
+    Timeline.prototype.childEase = function(ease) {
+        this.traverse(function(timeEvent) {
+            timeEvent.ease(ease);
+        });
+
+        return this;
+    };
 
     Timeline.prototype.activate = function() {
         TimeEvent.prototype.activate.apply(this, arguments);
