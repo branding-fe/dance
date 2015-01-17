@@ -1,0 +1,39 @@
+{
+    "name": "dance",
+    "version": "0.0.1",
+    "description": "Light-weight JavaScript animation framework",
+    "main": "index.js",
+    "dependencies": {
+        "edp": "~1.1.0",
+        "edp-build": "~1.0.14",
+        "uglify-js": "~2.4.16"
+    },
+    "scripts": {
+        "build": "node build.js"
+    },
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/branding-fe/dance.git"
+    },
+    "keywords": [
+        "dance",
+        "animation framework",
+        "JavaScript"
+    ],
+    "author": "osdream",
+    "license": "ISC",
+    "bugs": {
+        "url": "https://github.com/branding-fe/dance/issues"
+    },
+    "homepage": "https://github.com/branding-fe/dance",
+    "edp": {
+        "wwwroot": "/",
+        "depDir": "dep",
+        "srcDir": "src",
+        "loaderAutoConfig": "js,htm,html,tpl,vm,phtml",
+        "loaderUrl": "http://s1.bdstatic.com/r/www/cache/ecom/esl/1-8-2/esl.js",
+        "dependencies": {
+            "wave": "~0.0.2"
+        }
+    }
+}
