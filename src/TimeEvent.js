@@ -294,7 +294,7 @@ define(function(require) {
         var duration = this.getDuration();
         var reversePoint = opt_reversePoint != null
             ? opt_reversePoint
-            : this.playhead;
+            : (this.isPaused ? this.pausePoint : this.playhead);
         // 限制 reversePoint 到 0 ~ duration 中
         var played = Math.min(Math.max(reversePoint, 0), duration);
 
@@ -342,15 +342,18 @@ define(function(require) {
         return this;
     };
 
-    TimeEvent.prototype.play = function(opt_playhead) {
+    TimeEvent.prototype.play = function(opt_start, opt_end, options) {
         if (this.isPaused) {
-            if (opt_playhead != null) {
-                this.seek(opt_playhead);
+            if (opt_start != null) {
+                this.seek(opt_start);
             }
             this.resume();
         }
         else {
-            this.seek(opt_playhead || 0);
+            var duration = this.getDuration();
+            if (this.playhead < 0 || this.playhead >= duration) {
+                this.seek(opt_start || 0);
+            }
         }
 
         return this;

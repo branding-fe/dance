@@ -97,6 +97,52 @@ define(function(require) {
         }
     };
 
+    Timeline.prototype.outInTraverse = function(point, callback) {
+        var isBreaked = false;
+        var ret;
+        var timeEvent;
+        if (this.listHead) {
+            timeEvent = this.listHead;
+            // FIXME: 临界点
+            while (timeEvent) {
+                if (point < timeEvent.getStartPoint()
+                    || (!this.isRealReversed
+                        && point === timeEvent.getStartPoint()
+                    )
+                ) {
+                    break;
+                }
+                ret = callback(timeEvent);
+                if (ret === util.breaker) {
+                    isBreaked = true;
+                    break;
+                }
+                timeEvent = timeEvent.next;
+            }
+        }
+        if (isBreaked) {
+            return this;
+        }
+        if (this.listTail) {
+            timeEvent = this.listTail;
+            while (timeEvent) {
+                if (point > timeEvent.getStartPoint()
+                    || (this.isRealReversed
+                        && point === timeEvent.getStartPoint()
+                    )
+                ) {
+                    break;
+                }
+                ret = callback(timeEvent);
+                if (ret === util.breaker) {
+                    break;
+                }
+                timeEvent = timeEvent.prev;
+            }
+        }
+        return this;
+    };
+
     Timeline.prototype.enqueue = function(timeEvent) {
         if (this.listTail == null) {
             this.listHead = timeEvent;
@@ -109,7 +155,7 @@ define(function(require) {
             var startPoint = timeEvent.getStartPoint();
             var isFound = false;
             this.reverseTraverse(function(item) {
-                if (item.getStartPoint() > startPoint) {
+                if (startPoint >= item.getStartPoint()) {
                     isFound = true;
                     timeEvent.prev = item;
                     timeEvent.next = item.next;
@@ -198,7 +244,9 @@ define(function(require) {
 
     Timeline.prototype.internalRender = function(realPlayhead, opt_forceRender) {
         var that = this;
-        var traverse = this.isRealReversed ? this.reverseTraverse : this.traverse;
+        var traverse = opt_forceRender
+            ? util.bind(this.outInTraverse, this, realPlayhead)
+            : (this.isRealReversed ? this.reverseTraverse : this.traverse);
         traverse.call(this, function(timeEvent) {
             if (!timeEvent.isActive) {
                 return;
