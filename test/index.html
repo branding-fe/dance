@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dance - A JavaScript animation framework.</title>
+    <script type="text/javascript" src="http://s1.bdstatic.com/r/www/cache/ecom/esl/1-8-2/esl.js"></script>
+    <script type="text/javascript" src="http://cdn.staticfile.org/jquery/1.11.1/jquery.min.js"></script>
+    <style type="text/css">
+    body {padding:0;margin:0;}
+    #ticker {
+        background: #369;
+        padding: 10px 20px;
+        color: white;
+    }
+    #canvas {
+        position: relative;
+        height: 200px;
+        margin: 10px;
+    }
+    .block {
+        position: absolute;
+        top: 0;
+        left: 0px;
+        width: 100px;
+        height: 100px;
+    }
+    #block1 {
+        background: #E67E22;
+    }
+    #block2 {
+        background: #1ABC9C;
+        z-index: 2;
+    }
+    #block3 {
+        background: #3498DB;
+    }
+    .controls {
+        padding: 10px;
+    }
+    .controls a {
+        background: #3498DB;
+        display: inline-block;
+        padding: 5px 10px;
+        text-decoration: none;
+        margin-right: 10px;
+        color: white;
+    }
+    #bar {
+        cursor: pointer;
+        margin: 20px 10px 10px;
+        background: #369;
+        width: 316px;
+        height: 20px;
+        position: relative;
+    }
+    #bar-button {
+        cursor: pointer;
+        width: 20px;
+        height: 20px;
+        background: #D35400;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+    </style>
+</head>
+<body>
+<div id="ticker"><span id="ticker-count">0</span>&nbsp;&nbsp;&nbsp;&nbsp;<span id="ticker-fps">0</span></div>
+<div id="canvas">
+    <div id="block1" class="block"></div>
+    <div id="block2" class="block"></div>
+    <div id="block3" class="block"></div>
+</div>
+<div id="bar"><div id="bar-button"></div></div>
+<div id="controls" class="controls">
+    <a id="play" href="#">播放</a>
+    <a id="pause" href="#">暂停</a>
+    <a id="resume" href="#">继续</a>
+    <a id="reverse" href="#">反转</a>
+    <a id="stop" href="#">停止</a>
+</div>
+<script type="text/javascript">
+require.config({
+    baseUrl: '../src',
+    packages: [
+        {
+            "name": "wave",
+            "location": "../dep/wave/0.0.2/src",
+            "main": "Wave"
+        }
+    ]
+});
+require(['Ticker'], function(Ticker) {
+    var ticker = new Ticker();
+    var count = 0;
+    var times = [];
+    ticker.addListener('tick', function() {
+        count++;
+        times.unshift(new Date().getTime());
+        if (0 === count % 5) {
+            var fps = (1000 * (times.length - 1) / (times[0] - times[times.length - 1])).toFixed(1);
+            document.getElementById('ticker-fps').innerHTML = 'FPS: ' + fps;
+            times.splice(30, times.length - 30);
+        }
+        document.getElementById('ticker-count').innerHTML = 'Tick count: ' + count;
+    });
+});
+require(['Dance'], function(Dance) {
+    var ele1 = document.getElementById('block1');
+    var ele2 = document.getElementById('block2');
+    var ele3 = document.getElementById('block3');
+    // Dance.move(ele1)
+    //     .duration(1000)
+    //     .from({
+    //         top: '0px',
+    //         left: '0px'
+    //     })
+    //     .to({
+    //         top: '100px',
+    //         left: '100px'
+    //     });
+    var dance = Dance.create()
+        .add(Dance.move(ele1).to({ top: '100px' }).duration(1000))
+        .at(0)
+        .add(Dance.move(ele1).to({ left: '100px' }).duration(1000).ease(Dance.wave('easeInOutCubic')))
+        .at(1000)
+        .add(Dance.move(ele2).to({ left: '100px' }).duration(1000).ease(Dance.wave('easeInOutCubic')))
+        .at(0)
+        .add(Dance.move(ele2).from({ top: '0px' }).to({ top: '100px' }).duration(1000).ease(Dance.wave('easeOutBounce')))
+        .at(1000)
+        .add(Dance.move(ele3).to({ left: '216px', top: '100px' }).duration(1000).ease(Dance.wave('easeInOutCubic')))
+        .at(0)
+        .add(Dance.move(ele3).to({ left: '100px' }).duration(1000).ease(Dance.wave('easeInOutCubic')))
+        .at(1000);
+
+    var totalBarWidth = $('#bar').width() - 20;
+    dance.addListener('progress', function(progress) {
+        var buttonLeft = Math.min(Math.max(0, totalBarWidth * progress), totalBarWidth);
+        $('#bar-button').css('left', buttonLeft);
+    });
+
+    $('#controls').on('click', 'a', function() {
+        var id = $(this).attr('id');
+        dance[id]();
+        return false;
+    });
+
+    $('#bar').click(function(e) {
+        var parentOffset = $('#bar').offset();
+        var left = e.pageX - parentOffset.left - 10;
+        var buttonLeft = Math.min(Math.max(0, left), totalBarWidth);
+        $('#bar-button').css('left', buttonLeft);
+
+        var progress = left / totalBarWidth;
+        dance.seekProgress(progress, true);
+    });
+
+    window.dance = dance;
+});
+</script>
+</body>
+</html>

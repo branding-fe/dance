@@ -106,6 +106,10 @@ define(function(require) {
         return Object.prototype.toString.call(target) === '[object String]';
     };
 
+    util.isFunction = function(target) {
+        return Object.prototype.toString.call(target) === '[object Function]';
+    };
+
     util.isNumber = function(target) {
         return Object.prototype.toString.call(target) === '[object Number]';
     };
