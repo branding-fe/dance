@@ -17,10 +17,11 @@
 define(function(require) {
     var events = {
         'TICK': 'tick',
-        'BEFORE_START': 'beforestart',
-        'AFTER_FINISH': 'afterfinish',
-        'BEFORE_UPDATE': 'beforeupdate',
-        'AFTER_UPDATE': 'afterupdate'
+        'START': 'start',
+        'AFTER_FINISH': 'after_finish',
+        'BEFORE_UPDATE': 'before_update',
+        'AFTER_UPDATE': 'after_update',
+        'PROGRESS': 'progress'
     };
 
     return events;

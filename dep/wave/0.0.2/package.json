@@ -1,7 +1,7 @@
 {
-    "name": "dance",
-    "version": "0.0.1",
-    "description": "Light-weight JavaScript animation framework",
+    "name": "wave",
+    "version": "0.0.2",
+    "description": "Timing Function for Animation",
     "main": "index.js",
     "dependencies": {
         "edp": "~1.1.0",
@@ -13,27 +13,24 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/branding-fe/dance.git"
+        "url": "https://github.com/branding-fe/wave.git"
     },
     "keywords": [
-        "dance",
-        "animation framework",
-        "JavaScript"
+        "wave",
+        "timing function"
     ],
-    "author": "osdream",
+    "author": "osdream,zmmbreeze",
     "license": "ISC",
     "bugs": {
-        "url": "https://github.com/branding-fe/dance/issues"
+        "url": "https://github.com/branding-fe/wave/issues"
     },
-    "homepage": "https://github.com/branding-fe/dance",
+    "homepage": "https://github.com/branding-fe/wave",
     "edp": {
         "wwwroot": "/",
         "depDir": "dep",
         "srcDir": "src",
         "loaderAutoConfig": "js,htm,html,tpl,vm,phtml",
         "loaderUrl": "http://s1.bdstatic.com/r/www/cache/ecom/esl/1-8-2/esl.js",
-        "dependencies": {
-            "wave": "~0.0.2"
-        }
+        "dependencies": {}
     }
 }

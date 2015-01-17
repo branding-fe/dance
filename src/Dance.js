@@ -21,6 +21,7 @@ define(function(require) {
     var TimeEvent = require('./TimeEvent');
     var Timeline = require('./Timeline');
     var Move = require('./Move');
+    var wave = require('wave');
 
     /**
      * 时间轴
@@ -74,6 +75,8 @@ define(function(require) {
 
         return move;
     };
+
+    Dance.wave = wave;
 
     return Dance;
 });

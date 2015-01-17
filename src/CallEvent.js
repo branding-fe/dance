@@ -14,6 +14,8 @@
  * date:    $Date: 2014/12/15 11:05:10$
  */
 
+define(function(require) {
+});
 
 
 

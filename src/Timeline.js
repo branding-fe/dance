@@ -57,8 +57,9 @@ define(function(require) {
             if (timeEvent.isAttached()) {
                 timeEvent.detach();
             }
+            // FIXME: this.startPoint 同样需要更新
             timeEvent.setTimeline(this);
-            timeEvent.setStartPoint(this.time);
+            timeEvent.setStartPoint(this.playhead);
             this._lastTimeEvent = timeEvent;
             this.eventList.push(timeEvent);
             this.rearrange();
@@ -124,12 +125,15 @@ define(function(require) {
             var scaledElapsed = (realPlayhead - timeEvent.getStartPoint()) * timeEvent.getScale();
             timeEvent.render(scaledElapsed, opt_forceRender);
         });
+        var duration = this.getDuration();
+        var progress = Math.max(Math.min(realPlayhead, duration), 0) / duration;
+        this.trigger(events.PROGRESS, progress, this.playhead);
     };
 
     Timeline.prototype.reverse = function() {
         TimeEvent.prototype.reverse.apply(this, arguments);
 
-        this.seek(this.localPlayhead);
+        this.seek(this.playhead);
 
         return this;
     };

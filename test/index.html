@@ -29,6 +29,10 @@
     }
     #block2 {
         background: #1ABC9C;
+        z-index: 2;
+    }
+    #block3 {
+        background: #3498DB;
     }
     .controls {
         padding: 10px;
@@ -65,6 +69,7 @@
 <div id="canvas">
     <div id="block1" class="block"></div>
     <div id="block2" class="block"></div>
+    <div id="block3" class="block"></div>
 </div>
 <div id="bar"><div id="bar-button"></div></div>
 <div id="controls" class="controls">
@@ -76,7 +81,14 @@
 </div>
 <script type="text/javascript">
 require.config({
-    baseUrl: 'src'
+    baseUrl: '../src',
+    packages: [
+        {
+            "name": "wave",
+            "location": "../dep/wave/0.0.2/src",
+            "main": "Wave"
+        }
+    ]
 });
 require(['Ticker'], function(Ticker) {
     var ticker = new Ticker();
@@ -96,6 +108,7 @@ require(['Ticker'], function(Ticker) {
 require(['Dance'], function(Dance) {
     var ele1 = document.getElementById('block1');
     var ele2 = document.getElementById('block2');
+    var ele3 = document.getElementById('block3');
     // Dance.move(ele1)
     //     .duration(1000)
     //     .from({
@@ -109,12 +122,22 @@ require(['Dance'], function(Dance) {
     var dance = Dance.create()
         .add(Dance.move(ele1).to({ top: '100px' }).duration(1000))
         .at(0)
-        .add(Dance.move(ele1).to({ left: '100px' }).duration(1000))
+        .add(Dance.move(ele1).to({ left: '100px' }).duration(1000).ease(Dance.wave('easeInOutCubic')))
         .at(1000)
-        .add(Dance.move(ele2).to({ left: '100px' }).duration(1000))
+        .add(Dance.move(ele2).to({ left: '100px' }).duration(1000).ease(Dance.wave('easeInOutCubic')))
         .at(0)
-        .add(Dance.move(ele2).from({ top: '0px' }).to({ top: '100px' }).duration(1000))
+        .add(Dance.move(ele2).from({ top: '0px' }).to({ top: '100px' }).duration(1000).ease(Dance.wave('easeOutBounce')))
+        .at(1000)
+        .add(Dance.move(ele3).to({ left: '216px', top: '100px' }).duration(1000).ease(Dance.wave('easeInOutCubic')))
+        .at(0)
+        .add(Dance.move(ele3).to({ left: '100px' }).duration(1000).ease(Dance.wave('easeInOutCubic')))
         .at(1000);
+
+    var totalBarWidth = $('#bar').width() - 20;
+    dance.addListener('progress', function(progress) {
+        var buttonLeft = Math.min(Math.max(0, totalBarWidth * progress), totalBarWidth);
+        $('#bar-button').css('left', buttonLeft);
+    });
 
     $('#controls').on('click', 'a', function() {
         var id = $(this).attr('id');
@@ -124,12 +147,12 @@ require(['Dance'], function(Dance) {
 
     $('#bar').click(function(e) {
         var parentOffset = $('#bar').offset();
-        var left = e.pageX - parentOffset.left;
-        var totalWidth = $('#bar').width();
-        var buttonLeft = Math.min(Math.max(10, left), totalWidth - 10);
+        var left = e.pageX - parentOffset.left - 10;
+        var buttonLeft = Math.min(Math.max(0, left), totalBarWidth);
         $('#bar-button').css('left', buttonLeft);
-        var progress = dance.getDuration() * left / totalWidth;
-        dance.seek(progress);
+
+        var progress = left / totalBarWidth;
+        dance.seekProgress(progress, true);
     });
 
     window.dance = dance;

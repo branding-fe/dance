@@ -36,7 +36,7 @@ define(function(require) {
          * 时间事件发生的时间起点或者帧数起点
          * @type {number}
          */
-        this.startPoint;
+        this.startPoint = 0;
 
         /**
          * 时间事件开始之前的delay
@@ -85,12 +85,12 @@ define(function(require) {
          * 当前时间或帧数(相对于自身startPoint)
          * @type {number}
          */
-        this.time = -TINY_NUMBER;
+        this.playhead = 0;
 
         /**
-         * 记录计算的当前时间或帧数
+         * 上一次记录的当前时间或帧数是否可信
          */
-        this.localPlayhead = -TINY_NUMBER;
+        this.isPlayheadDirty = true;
 
         /**
          * 是否逆向
@@ -113,7 +113,7 @@ define(function(require) {
     };
 
     TimeEvent.prototype.getTime = function() {
-        return this.time;
+        return this.playhead;
     };
 
     TimeEvent.prototype.duration = function(duration) {
@@ -151,16 +151,6 @@ define(function(require) {
         }
     };
 
-    // TimeEvent.prototype.at
-    //     = TimeEvent.prototype.when
-    //     = function(timeOrFrame) {
-    //         if (this.timeline) {
-    //             this.time = timeOrFrame + this.getStartPoint();
-    //         }
-
-    //         return this;
-    //     };
-
     TimeEvent.prototype.delay
         = TimeEvent.prototype.after
         = function(timeOrFrame) {
@@ -175,7 +165,10 @@ define(function(require) {
      * 2. opt_forceRender=false 那么立即触发事件
      */
     TimeEvent.prototype.render = function(playhead, opt_forceRender) {
-        this.time = playhead;
+        var lastPlayhead = this.playhead;
+        this.playhead = playhead;
+        var isPlayheadDirty = this.isPlayheadDirty;
+        this.isPlayheadDirty = false;
 
         if (!opt_forceRender && this.isPaused) {
             return this;
@@ -185,48 +178,79 @@ define(function(require) {
         // 如果时zero-duration的move，如果正好落在此处，有两种情况
 
         var duration = this.getDuration();
-        // 限定在 0 ~ Infinity 之间
-        var localPlayhead = Math.max(playhead, -TINY_NUMBER);
-
         // 不处于激活状态或者跟上一次相同，不需要渲染
-        var lastLocalPlayhead = this.localPlayhead;
-        if (!this.isActive || localPlayhead === lastLocalPlayhead) {
+        if (!this.isActive || playhead === lastPlayhead) {
             return this;
         }
 
-        // 从区域内离开都是"完成"
+        // 不在区域内并且是离开的方向就是"完成"
         var isFinished = false;
+        var isNeedRender = true;
         if (!opt_forceRender) {
-            if (localPlayhead >= duration && lastLocalPlayhead < duration
-                || localPlayhead <= 0 && lastLocalPlayhead > 0
-            ) {
-                isFinished = true;
-                if (localPlayhead === 0) {
-                    localPlayhead = -TINY_NUMBER;
+            if (playhead < 0) {
+                if (isPlayheadDirty) {
+                    isNeedRender = false;
                 }
-                else if (localPlayhead === duration) {
-                    localPlayhead = duration + TINY_NUMBER;
+                else {
+                    if (playhead < lastPlayhead) {
+                        isFinished = true;
+                    } else {
+                        isNeedRender = false;
+                    }
                 }
             }
-            // 从区域外进入区域内都是"开始"
-            else if (localPlayhead >= 0
-                && localPlayhead <= duration
-                && (lastLocalPlayhead < 0 || lastLocalPlayhead > duration)
-            ) {
-                this.trigger(events.BEFORE_START);
+            else if (playhead > duration) {
+                if (isPlayheadDirty) {
+                    isNeedRender = false;
+                }
+                else {
+                    if (playhead > lastPlayhead) {
+                        isFinished = true;
+                    } else {
+                        isNeedRender = false;
+                    }
+                }
+            }
+            else {
+                if (lastPlayhead != null
+                    && (lastPlayhead < 0 || lastPlayhead > duration)
+                ) {
+                    this.trigger(events.START);
+                }
             }
         }
 
+        // if (!opt_forceRender && lastPlayhead != null) {
+        //     if (playhead >= duration && playhead > lastPlayhead
+        //         || playhead <= 0 && playhead < lastPlayhead
+        //     ) {
+        //         isFinished = true;
+        //         // if (playhead <= 0) {
+        //         //     playhead = -TINY_NUMBER;
+        //         // }
+        //         // else if (playhead >= duration) {
+        //         //     playhead = duration + TINY_NUMBER;
+        //         // }
+        //     }
+        //     // 从区域外进入区域内都是"开始"
+        //     else if (playhead >= 0
+        //         && playhead <= duration
+        //         && (lastPlayhead < 0 || lastPlayhead > duration)
+        //     ) {
+        //         this.trigger(events.START);
+        //     }
+        // }
+
         // 如果是逆向，playhead 反转
-        var realPlayhead = this.isReversed ? duration - localPlayhead : localPlayhead;
-        this.internalRender(realPlayhead, opt_forceRender);
+        var realPlayhead = this.isReversed ? duration - playhead : playhead;
+        if (this.isAlwaysActive || isNeedRender) {
+            this.internalRender(realPlayhead, opt_forceRender);
+        }
 
         if (isFinished) {
             this.deactivate();
             this.trigger(events.AFTER_FINISH);
         }
-
-        this.localPlayhead = localPlayhead;
 
         return this;
     };
@@ -239,6 +263,7 @@ define(function(require) {
 
     TimeEvent.prototype.deactivate = function() {
         if (!this.isAlwaysActive) {
+            this.isPlayheadDirty = true;
             this.isActive = false;
         }
     };
@@ -255,7 +280,7 @@ define(function(require) {
         var duration = this.getDuration();
         var reversePoint = opt_reversePoint != null
             ? opt_reversePoint
-            : this.localPlayhead;
+            : this.playhead;
         // 限制 reversePoint 到 0 ~ duration 中
         var played = Math.min(Math.max(reversePoint, 0), duration);
 
@@ -263,7 +288,7 @@ define(function(require) {
         var playedNow = duration - played;
         this.startPoint = this.timeline.getTime() - playedNow / this.getScale();
         // FIXME: 边界情况？reverse(0) 之类的
-        this.localPlayhead = playedNow;
+        this.playhead = playedNow;
         this.rearrange();
 
         return this;
@@ -281,6 +306,24 @@ define(function(require) {
         this.rearrange();
 
         this.render(played, true);
+
+        return this;
+    };
+
+    /**
+     * 按指定进度挪动指针
+     * @type {number} progress 进度
+     * @type {boolean} opt_reverseConsidered 是否考虑反转。
+     *       提供的 progress 有两种可能：
+     *       1. progress 表示已播放的百分比，不管是否处于反转状态 (opt_reverseConsidered = false)
+     *       2. progress 表示实际指针位置 (opt_reverseConsidered = true)
+     */
+    TimeEvent.prototype.seekProgress = function(progress, opt_reverseConsidered) {
+        var duration = this.getDuration();
+        var actualProgress = opt_reverseConsidered && this.isReversed
+            ? 1 - progress
+            : progress
+        this.seek(duration * actualProgress);
 
         return this;
     };
@@ -310,7 +353,7 @@ define(function(require) {
         if (opt_playhead != null) {
             this.seek(opt_playhead);
         }
-        this.pausePoint = this.localPlayhead;
+        this.pausePoint = this.playhead;
         this.isPaused = true;
 
         return this;
