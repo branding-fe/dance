@@ -693,11 +693,7 @@ define('TimeEvent', [
     };
     TimeEvent.prototype.getProgress = function (timePercent) {
         if (this._ease) {
-            if (this.isRealReversed) {
-                return 1 - this._ease(1 - timePercent);
-            } else {
-                return this._ease(timePercent);
-            }
+            return this._ease(timePercent);
         } else {
             return timePercent;
         }
