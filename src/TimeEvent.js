@@ -514,8 +514,10 @@ define(function(require) {
         if (opt_playhead != null) {
             this.seek(opt_playhead);
         }
-        this.pausePoint = this.playhead;
-        this.isPaused = true;
+        if (!this.isPaused) {
+            this.pausePoint = this.playhead;
+            this.isPaused = true;
+        }
 
         return this;
     };
