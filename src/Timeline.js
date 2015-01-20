@@ -1,11 +1,13 @@
 /***************************************************************************
- * 
+ *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * 
+ * @author: songao(songao@baidu.com)
+ * @file: src/Timeline.js
+ *
  **************************************************************************/
- 
- 
+
+
 /*
  * path:    src/Timeline.js
  * desc:    时间轴基类
@@ -14,7 +16,7 @@
  * date:    $Date: 2014/12/11 12:58:06$
  */
 
-define(function(require) {
+define(function (require) {
     var global = require('./global');
     var util = require('./util');
     var events = require('./events');
@@ -33,12 +35,28 @@ define(function(require) {
         // render函数调用频繁，将render函数放到this上，减少prototype的查找时间
         this.render = Timeline.prototype.render;
 
+        /**
+         * 保存最近一次添加的时间事件
+         * @type {TimeEvent}
+         */
         this._lastTimeEvent;
 
+        /**
+         * 双向链表的头指针
+         * @type {TimeEvent}
+         */
         this.listHead = null;
 
+        /**
+         * 双向链表的尾指针
+         * @type {TimeEvent}
+         */
         this.listTail = null;
 
+        /**
+         * 是否永久处于激活状态，对于时间轴来说是永久激活的，所以这里是true
+         * @type {boolean}
+         */
         this.isAlwaysActive = true;
     }
     util.inherits(Timeline, TimeEvent);
@@ -48,30 +66,35 @@ define(function(require) {
      * 允许添加任何TimeEvent类型的对象，例如Move、PauseEvent等，甚至可以添加时间轴对象Timeline
      *
      * @param {TimeEvent} timeEvent 时间事件
+     * @return {Timeline}
      */
-    Timeline.prototype.add = function(timeEvent) {
-            if (!timeEvent instanceof TimeEvent) {
-                throw 'Only TimeEvent could be added to Timeline!';
-            }
-            if (timeEvent.isInFrame !== this.isInFrame) {
-                throw 'Can not add a TimeEvent with '
-                    + (timeEvent.isInFrame ? 'frame' : 'time')
-                    + ' in a Timeline with ' + (this.isInFrame ? 'frame' : 'time');
-            }
-            if (timeEvent.isAttached()) {
-                timeEvent.detach();
-            }
-            // FIXME: this.startPoint 同样需要更新
-            timeEvent.setTimeline(this);
-            timeEvent.setStartPoint(this.playhead);
-            timeEvent.setRealReverse(this.isRealReversed);
-            this._lastTimeEvent = timeEvent;
-            this.enqueue(timeEvent);
-            this.rearrange();
-            return this;
-        };
+    Timeline.prototype.add = function (timeEvent) {
+        if (!timeEvent instanceof TimeEvent) {
+            throw 'Only TimeEvent could be added to Timeline!';
+        }
+        if (timeEvent.isInFrame !== this.isInFrame) {
+            throw 'Can not add a TimeEvent with '
+                + (timeEvent.isInFrame ? 'frame' : 'time')
+                + ' in a Timeline with ' + (this.isInFrame ? 'frame' : 'time');
+        }
+        if (timeEvent.isAttached()) {
+            timeEvent.detach();
+        }
+        // FIXME: this.startPoint 同样需要更新
+        timeEvent.setTimeline(this);
+        timeEvent.setStartPoint(this.playhead);
+        timeEvent.setRealReverse(this.isRealReversed);
+        this._lastTimeEvent = timeEvent;
+        this.enqueue(timeEvent);
+        this.rearrange();
+        return this;
+    };
 
-    Timeline.prototype.traverse = function(callback) {
+    /**
+     * 从链表的头部开始遍历
+     * @param {Function} callback 回调
+     */
+    Timeline.prototype.traverse = function (callback) {
         if (this.listHead) {
             var timeEvent = this.listHead;
             while (timeEvent) {
@@ -84,7 +107,11 @@ define(function(require) {
         }
     };
 
-    Timeline.prototype.reverseTraverse = function(callback) {
+    /**
+     * 从链表的尾部开始遍历
+     * @param {Function} callback 回调
+     */
+    Timeline.prototype.reverseTraverse = function (callback) {
         if (this.listTail) {
             var timeEvent = this.listTail;
             while (timeEvent) {
@@ -97,7 +124,12 @@ define(function(require) {
         }
     };
 
-    Timeline.prototype.outInTraverse = function(point, callback) {
+    /**
+     * 从链表的两边往指定位置遍历
+     * @param {number} point 指定位置
+     * @param {Function} callback 回调
+     */
+    Timeline.prototype.outInTraverse = function (point, callback) {
         var isBreaked = false;
         var ret;
         var timeEvent;
@@ -143,7 +175,11 @@ define(function(require) {
         return this;
     };
 
-    Timeline.prototype.enqueue = function(timeEvent) {
+    /**
+     * 往链表上添加时间事件，按开始事件先后进行摆放
+     * @param {TimeEvent} timeEvent 时间事件
+     */
+    Timeline.prototype.enqueue = function (timeEvent) {
         if (this.listTail == null) {
             this.listHead = timeEvent;
             this.listTail = timeEvent;
@@ -154,7 +190,7 @@ define(function(require) {
             var that = this;
             var startPoint = timeEvent.getStartPoint();
             var isFound = false;
-            this.reverseTraverse(function(item) {
+            this.reverseTraverse(function (item) {
                 if (startPoint >= item.getStartPoint()) {
                     isFound = true;
                     timeEvent.prev = item;
@@ -177,7 +213,11 @@ define(function(require) {
         }
     };
 
-    Timeline.prototype.dequeue = function(timeEvent) {
+    /**
+     * 往链表上删除时间事件
+     * @param {TimeEvent} timeEvent 时间事件
+     */
+    Timeline.prototype.dequeue = function (timeEvent) {
         if (timeEvent.timeline === this) {
             if (timeEvent.prev) {
                 timeEvent.prev.next = timeEvent.next;
@@ -200,7 +240,12 @@ define(function(require) {
         }
     };
 
-    Timeline.prototype.at = function(timeOrFrame) {
+    /**
+     * 给前一个刚添加的时间事件设置在时间轴上的放置位置
+     * @param {number} timeOrFrame 放置时间点
+     * @return {Timeline}
+     */
+    Timeline.prototype.at = function (timeOrFrame) {
         if (this._lastTimeEvent) {
             this._lastTimeEvent.setStartPoint(timeOrFrame);
             this.rearrange();
@@ -209,14 +254,24 @@ define(function(require) {
         return this;
     };
 
-    Timeline.prototype.remove = function(target) {
+    /**
+     * 从时间轴上移除某个时间事件
+     * @param {TimeEvent} target 目标时间事件
+     * @return {Timeline}
+     */
+    Timeline.prototype.remove = function (target) {
         this.dequeue(target);
         this.rearrange();
 
         return this;
     };
 
-    Timeline.prototype.scale = function() {
+    /**
+     * 对时间轴进行缩放：即快放或者慢放
+     * @param {number} scale 缩放比例
+     * @return {Timeline}
+     */
+    Timeline.prototype.scale = function (scale) {
         TimeEvent.prototype.scale.apply(this, arguments);
 
         this.rearrange();
@@ -224,9 +279,13 @@ define(function(require) {
         return this;
     };
 
-    Timeline.prototype.rearrange = function() {
+    /**
+     * 对时间轴进行整理，计算有动画的时长
+     * @return {Timeline}
+     */
+    Timeline.prototype.rearrange = function () {
         var maxRelativeEndPoint = -Infinity;
-        this.traverse(function(timeEvent) {
+        this.traverse(function (timeEvent) {
             var relativeEndPoint = timeEvent.getStartPoint() + timeEvent.getDuration() / timeEvent.getScale();
             if (relativeEndPoint > maxRelativeEndPoint) {
                 maxRelativeEndPoint = relativeEndPoint;
@@ -242,7 +301,13 @@ define(function(require) {
         return this;
     };
 
-    Timeline.prototype.internalRender = function(realPlayhead, opt_forceRender) {
+    /**
+     * 渲染函数
+     * @param {number} realPlayhead 实际播放位置
+     * @param {boolean=} opt_forceRender 是否强制渲染
+     * @return {Timeline}
+     */
+    Timeline.prototype.internalRender = function (realPlayhead, opt_forceRender) {
         var that = this;
         var traverse = opt_forceRender
             ? util.bind(this.outInTraverse, this, realPlayhead)
@@ -255,7 +320,7 @@ define(function(require) {
             progress = this.getProgress(progress);
             realPlayhead = realPlayhead * progress;
         }
-        traverse.call(this, function(timeEvent) {
+        traverse.call(this, function (timeEvent) {
             if (!timeEvent.isActive) {
                 return;
             }
@@ -266,15 +331,22 @@ define(function(require) {
         this.trigger(events.PROGRESS, progress, this.playhead);
     };
 
-    Timeline.prototype.setRealReverse = function() {
+    /**
+     * 设置真实逆转状态
+     */
+    Timeline.prototype.setRealReverse = function () {
         TimeEvent.prototype.setRealReverse.apply(this, arguments);
 
-        this.traverse(function(timeEvent) {
+        this.traverse(function (timeEvent) {
             timeEvent.setRealReverse();
         });
     };
 
-    Timeline.prototype.reverse = function() {
+    /**
+     * 反转时间轴
+     * @return {Timeline}
+     */
+    Timeline.prototype.reverse = function () {
         TimeEvent.prototype.reverse.apply(this, arguments);
 
         this.seek(this.playhead);
@@ -282,28 +354,44 @@ define(function(require) {
         return this;
     };
 
-    Timeline.prototype.childEase = function(ease) {
-        this.traverse(function(timeEvent) {
+    /**
+     * 批量设置时间轴上的时间事件的缓动函数
+     * @param {Function} ease 缓动函数
+     * @return {Timeline}
+     */
+    Timeline.prototype.childEase = function (ease) {
+        this.traverse(function (timeEvent) {
             timeEvent.ease(ease);
         });
 
         return this;
     };
 
-    Timeline.prototype.activate = function() {
+    /**
+     * 激活时间轴上所有的动画
+     * @return {Timeline}
+     */
+    Timeline.prototype.activate = function () {
         TimeEvent.prototype.activate.apply(this, arguments);
 
-        this.traverse(function(timeEvent) {
+        this.traverse(function (timeEvent) {
             timeEvent.activate();
         });
 
         return this;
     };
 
+    /**
+     * 设定时间轴速度
+     * @param {number} scale 缩放比例
+     * @return {Timeline}
+     */
     Timeline.prototype.setPlaybackRate
         = Timeline.prototype.speed
-        = function() {
-            // TODO
+        = function (scale) {
+            this.scale(scale);
+
+            return this;
         };
 
     // 实例化 Ticker
@@ -314,7 +402,7 @@ define(function(require) {
     global.rootFrameTimeline = new Timeline({
         'isInFrame': true
     });
-    global.ticker.addListener(events.TICK, function(time, frame) {
+    global.ticker.addListener(events.TICK, function (time, frame) {
         global.rootTimeline.render(time);
         global.rootFrameTimeline.render(frame);
     });

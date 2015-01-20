@@ -1,20 +1,22 @@
 /***************************************************************************
- * 
+ *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * 
+ * @author: songao(songao@baidu.com)
+ * @file: src/Ticker.js
+ *
  **************************************************************************/
- 
- 
+
+
 /*
  * path:    src/Ticker.js
- * desc:    
+ * desc:    节拍器
  * author:  songao(songao@baidu.com)
  * version: $Revision$
  * date:    $Date: 2014/12/11 13:02:04$
  */
 
-define(function(require) {
+define(function (require) {
     var util = require('./util');
     var events = require('./events');
     var EventDispatcher = require('./EventDispatcher');
@@ -162,7 +164,7 @@ define(function(require) {
     /**
      * 一次节拍
      */
-    Ticker.prototype.tick = function() {
+    Ticker.prototype.tick = function () {
         var now = this.now();
 
         // 从上一次tick到现在这次tick消耗的时间
@@ -202,7 +204,7 @@ define(function(require) {
     /**
      * 让ticker暂停
      */
-    Ticker.prototype.sleep = function() {
+    Ticker.prototype.sleep = function () {
         if (this.isTicking && this.nextFrameTimer) {
              this.cancelNextFrame(this.nextFrameTimer);
         }
@@ -214,7 +216,7 @@ define(function(require) {
     /**
      * 唤醒ticker
      */
-    Ticker.prototype.wake = function() {
+    Ticker.prototype.wake = function () {
         if (this.isTicking) {
             this.sleep();
         }
@@ -225,18 +227,18 @@ define(function(require) {
         else {
             var self = this;
             if (this.enableRAF && requestAnimationFrame) {
-                this.requestNextFrame = function() {
+                this.requestNextFrame = function () {
                     requestAnimationFrame.apply(window, arguments);
                 };
-                this.cancelNextFrame = function() {
+                this.cancelNextFrame = function () {
                     cancelAnimationFrame.apply(window, arguments);
                 };
             }
             else {
-                this.requestNextFrame = function(nextHandler) {
+                this.requestNextFrame = function (nextHandler) {
                     return setTimeout(nextHandler, self.nextFrameTime - self.time + 1);
                 }
-                this.cancelNextFrame = function(id) {
+                this.cancelNextFrame = function (id) {
                     clearTimeout(id);
                 }
             }
@@ -250,7 +252,7 @@ define(function(require) {
      * 获取当前现实时间
      * @return {number}
      */
-    Ticker.prototype.now = function() {
+    Ticker.prototype.now = function () {
         return Date.now ? Date.now() : new Date().getTime();
     };
 
@@ -258,7 +260,7 @@ define(function(require) {
      * 设置帧率
      * @type {number} fps 帧率
      */
-    Ticker.prototype.setFps = function(fps) {
+    Ticker.prototype.setFps = function (fps) {
         this.fps = fps;
         this.interval = 1000 / (this.fps || 60);
         this.nextFrameTime = this.time + this.interval;
@@ -269,7 +271,7 @@ define(function(require) {
      * 获取帧率
      * @return {number}
      */
-    Ticker.prototype.getFps = function() {
+    Ticker.prototype.getFps = function () {
         return this.fps;
     };
 
@@ -281,7 +283,7 @@ define(function(require) {
      * 2. 有些浏览器例如iOS，在切换不同TAB然后再次切回来时，偶尔会丢失requestAnimationFrame
      *    这里不停查看两次tick的时延来检查是否出现这种情况，如果出现立即调用wake
      */
-    Ticker.prototype.aliveCheck = function() {
+    Ticker.prototype.aliveCheck = function () {
         var self = this;
         // 有可能帧率极低，需要根据帧率调整检测间隔
         var timeout = Math.max(2000, this.interval * 3);

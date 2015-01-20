@@ -1,11 +1,13 @@
 /***************************************************************************
- * 
+ *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * 
+ * @author: songao(songao@baidu.com)
+ * @file: src/Dance.js
+ *
  **************************************************************************/
- 
- 
+
+
 /*
  * path:    src/Dance.js
  * desc:    时间轴，同时封装了一些静态方法供外部调用
@@ -14,20 +16,19 @@
  * date:    $Date: 2014/12/11 12:57:29$
  */
 
-define(function(require) {
+define(function (require) {
     var global = require('./global');
     var util = require('./util');
-    var events = require('./events');
-    var TimeEvent = require('./TimeEvent');
     var Timeline = require('./Timeline');
     var Move = require('./Move');
     var wave = require('wave');
 
     /**
      * 时间轴
+     * @param {Object} options 选项
      * @constructor
      */
-    function Dance() {
+    function Dance(options) {
         Timeline.apply(this, arguments);
 
         // 性能优化：
@@ -38,11 +39,21 @@ define(function(require) {
 
     // --------- 下面是各种静态方法 ----------- //
 
-    Dance.defaults = function(key, value) {
+    /**
+     * 配置默认参数
+     * @param {string} key 键
+     * @param {*} value 值
+     */
+    Dance.defaults = function (key, value) {
         global.defaults[key] = value;
     };
 
-    Dance.create = function(options) {
+    /**
+     * 创建时间轴
+     * @param {Object} options 选项
+     * @return {Dance}
+     */
+    Dance.create = function (options) {
         var dance = new Dance(options);
 
         if (util.isPlainObject(options)
@@ -60,8 +71,10 @@ define(function(require) {
 
     /**
      * 创建一个Move，并添加到顶层时间线上
+     * @param {Object} options 选项
+     * @return {Move}
      */
-    Dance.move = function(options) {
+    Dance.move = function (options) {
         var move = new Move(options);
 
         if (util.isPlainObject(options)
@@ -76,6 +89,10 @@ define(function(require) {
         return move;
     };
 
+    /**
+     * 对外暴露 Wave
+     * @type {Wave}
+     */
     Dance.wave = wave;
 
     return Dance;

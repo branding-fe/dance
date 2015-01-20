@@ -542,7 +542,6 @@ define('EventDispatcher', ['require'], function (require) {
     function EventDispatcher() {
         this._listeners = {};
     }
-    ;
     EventDispatcher.prototype.addListener = function (eventType, listener) {
         if (!this._listeners[eventType]) {
             this._listeners[eventType] = [];
@@ -624,17 +623,16 @@ define('TimeEvent', [
     var util = require('./util');
     var events = require('./events');
     var EventDispatcher = require('./EventDispatcher');
-    var TINY_NUMBER = global.TINY_NUMBER;
     function TimeEvent(options) {
         EventDispatcher.call(this);
         options = options || {};
         this.isInFrame = options['isInFrame'] || false;
-        this.startPoint = 0;
-        this.delay;
-        this._duration = Infinity;
-        this._scale = 1;
-        this.timeline;
-        this._ease;
+        this.startPoint = options['startPoint'] || 0;
+        this.delay = options['delay'];
+        this._duration = options['duration'] != null ? options['duration'] : Infinity;
+        this._scale = options['scale'] || 1;
+        this.timeline = options['timeline'];
+        this._ease = options['ease'];
         this.isPaused = false;
         this.isActive = true;
         this.isAlwaysActive = false;
@@ -696,9 +694,8 @@ define('TimeEvent', [
     TimeEvent.prototype.getProgress = function (timePercent) {
         if (this._ease) {
             return this._ease(timePercent);
-        } else {
-            return timePercent;
         }
+        return timePercent;
     };
     TimeEvent.prototype.render = function (playhead, opt_forceRender) {
         var lastPlayhead = this.playhead;
@@ -1155,7 +1152,7 @@ define('Timeline', [
         this.rearrange();
         return this;
     };
-    Timeline.prototype.scale = function () {
+    Timeline.prototype.scale = function (scale) {
         TimeEvent.prototype.scale.apply(this, arguments);
         this.rearrange();
         return this;
@@ -1217,7 +1214,9 @@ define('Timeline', [
         });
         return this;
     };
-    Timeline.prototype.setPlaybackRate = Timeline.prototype.speed = function () {
+    Timeline.prototype.setPlaybackRate = Timeline.prototype.speed = function (scale) {
+        this.scale(scale);
+        return this;
     };
     global.ticker = new Ticker();
     global.rootTimeline = new Timeline();
@@ -1829,20 +1828,16 @@ define('Dance', [
     'require',
     './global',
     './util',
-    './events',
-    './TimeEvent',
     './Timeline',
     './Move',
     'wave'
 ], function (require) {
     var global = require('./global');
     var util = require('./util');
-    var events = require('./events');
-    var TimeEvent = require('./TimeEvent');
     var Timeline = require('./Timeline');
     var Move = require('./Move');
     var wave = require('wave');
-    function Dance() {
+    function Dance(options) {
         Timeline.apply(this, arguments);
         this.render = Dance.prototype.render;
     }
@@ -1873,7 +1868,10 @@ define('Dance', [
 });
 var Dance = require('Dance');
 var Ticker = require('Ticker');
+var global = require('global');
 Dance.Ticker = Ticker;
+Dance.ticker = global.ticker;
+
 var wave = require('wave');
 Dance.wave = wave;
 

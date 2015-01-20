@@ -1,34 +1,36 @@
 /***************************************************************************
- * 
+ *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * 
+ * @author: songao(songao@baidu.com)
+ * @file: src/EventDispatcher.js
+ *
  **************************************************************************/
- 
- 
+
+
 /*
  * path:    src/EventDispatcher.js
- * desc:    
+ * desc:    事件派发器
  * author:  songao(songao@baidu.com)
  * version: $Revision$
  * date:    $Date: 2014/12/11 13:40:36$
  */
 
-define(function(require) {
+define(function (require) {
     /**
      * 事件派发器，需要实现事件的类从此类继承
      * @constructor
      */
     function EventDispatcher() {
         this._listeners = {};
-    };
+    }
 
     /**
      * 添加监听器
      * @param {string} eventType 事件类型.
      * @param {Function} listener 监听器.
      */
-    EventDispatcher.prototype.addListener = function(eventType, listener) {
+    EventDispatcher.prototype.addListener = function (eventType, listener) {
         if (!this._listeners[eventType]) {
             this._listeners[eventType] = [];
         }
@@ -41,7 +43,7 @@ define(function(require) {
      * @param {string} eventType 事件类型.
      * @param {Function} listener 监听器.
      */
-    EventDispatcher.prototype.removeListener = function(eventType, listener) {
+    EventDispatcher.prototype.removeListener = function (eventType, listener) {
         if (!this._listeners[eventType]) {
             return;
         }
@@ -63,7 +65,7 @@ define(function(require) {
      * @param {...*} var_args 自定义参数.
      * @return {boolean} 返回值.
      */
-    EventDispatcher.prototype.trigger = function(eventType, var_args) {
+    EventDispatcher.prototype.trigger = function (eventType, var_args) {
         if (!this._listeners[eventType]) {
             return true;
         }
@@ -83,7 +85,7 @@ define(function(require) {
     /**
      * 删除所有的事件监听处理逻辑.
      */
-    EventDispatcher.prototype.dispose = function() {
+    EventDispatcher.prototype.dispose = function () {
         this._listeners = {};
     };
 
@@ -100,12 +102,12 @@ define(function(require) {
      * @param {string} eventType 事件类型.
      * @param {Function} listener 监听器.
      */
-    EventDispatcher.prototype.registerListener = function(eventType, listener) {
+    EventDispatcher.prototype.registerListener = function (eventType, listener) {
         var registry = EventDispatcher._registry;
         registry.push({
-            'eventType' : eventType,
-            'subscriber' : this,
-            'listener' : listener
+            'eventType': eventType,
+            'subscriber': this,
+            'listener': listener
         });
     };
 
@@ -115,7 +117,7 @@ define(function(require) {
      * @param {string} eventType 事件类型.
      * @param {Function} listener 监听器.
      */
-    EventDispatcher.prototype.unregisterListener = function(eventType, listener) {
+    EventDispatcher.prototype.unregisterListener = function (eventType, listener) {
         var registry = EventDispatcher._registry;
         for (var i = registry.length - 1; i >= 0; i--) {
             var item = registry[i];
@@ -136,7 +138,7 @@ define(function(require) {
      * @param {...*} var_args 自定义参数.
      * @return {boolean} 返回值.
      */
-    EventDispatcher.prototype.publish = function(eventType, var_args) {
+    EventDispatcher.prototype.publish = function (eventType, var_args) {
         var registry = EventDispatcher._registry;
         var args = Array.prototype.slice.call(arguments, 1);
         var result = true;

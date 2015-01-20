@@ -1,20 +1,22 @@
 /***************************************************************************
- * 
+ *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * 
+ * @author: songao(songao@baidu.com)
+ * @file: src/Move.js
+ *
  **************************************************************************/
- 
- 
+
+
 /*
  * path:    src/Move.js
- * desc:    
+ * desc:    动作类
  * author:  songao(songao@baidu.com)
  * version: $Revision$
  * date:    $Date: 2014/12/11 12:57:35$
  */
 
-define(function(require) {
+define(function (require) {
     var util = require('./util');
     var events = require('./events');
     var TimeEvent = require('./TimeEvent');
@@ -23,6 +25,9 @@ define(function(require) {
 
     /**
      * 动作类，封装一次简单的动画
+     * @param {Object|HTMLElement} options 选项
+     * @param {HTMLElement} options.element 目标元素
+     * @param {Function} options.render 自定义渲染函数
      * @constructor
      */
     function Move(options) {
@@ -40,8 +45,16 @@ define(function(require) {
 
         TimeEvent.call(this, options);
 
+        /**
+         * 动画的目标元素
+         * @type {HTMLElement}
+         */
         this.element = options['element'];
 
+        /**
+         * 自定义渲染函数
+         * @type {Function}
+         */
         this.customRender = options['render'];
 
         // 性能优化：
@@ -50,12 +63,18 @@ define(function(require) {
 
         /**
          * 变化分量
+         * @type {Object.<string, DeclarationBetween>}
          */
         this.betweens = {};
     }
     util.inherits(Move, TimeEvent);
 
-    Move.prototype.to = function(dest) {
+    /**
+     * 设定动作的结束点的CSS样式
+     * @param {Object} dest 结束点CSS样式
+     * @return {Move}
+     */
+    Move.prototype.to = function (dest) {
         var declarationSet = CssDeclarationParser.parse(dest);
         for (var key in declarationSet) {
             var bt = this.betweens[key] || new DeclarationBetween(key, this.element);
@@ -66,7 +85,12 @@ define(function(require) {
         return this;
     };
 
-    Move.prototype.from = function(src) {
+    /**
+     * 设定动作的起始点的CSS样式
+     * @param {Object} src 起始点CSS样式
+     * @return {Move}
+     */
+    Move.prototype.from = function (src) {
         var declarationSet = CssDeclarationParser.parse(src);
         for (var key in declarationSet) {
             var bt = this.betweens[key] || new DeclarationBetween(key, this.element);
@@ -77,14 +101,25 @@ define(function(require) {
         return this;
     };
 
-    Move.prototype.between = function(src, dest) {
+    /**
+     * 同时设定动作的起始点和结束点的CSS样式
+     * @param {Object} src 起始点CSS样式
+     * @param {Object} dest 结束点CSS样式
+     * @return {Move}
+     */
+    Move.prototype.between = function (src, dest) {
         this.from(src).to(dest);
 
         return this;
     };
 
-    Move.prototype.internalRender = function(realPlayhead, opt_forceRender) {
-        // TODO: custom render
+    /**
+     * 渲染函数
+     * @param {number} realPlayhead 实际播放位置
+     * @param {boolean=} opt_forceRender 是否强制渲染
+     * @return {Move}
+     */
+    Move.prototype.internalRender = function (realPlayhead, opt_forceRender) {
         var percent;
         var duration = this.getDuration();
         if (realPlayhead >= duration) {
@@ -110,7 +145,12 @@ define(function(require) {
 
     // --------- 下面是各种静态方法 ----------- //
 
-    Move.create = function(options) {
+    /**
+     * 创建 Move 对象
+     * @param {Object} options 选项
+     * @return {Move}
+     */
+    Move.create = function (options) {
         var move = new Move(options);
 
         return move;
