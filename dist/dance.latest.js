@@ -677,11 +677,13 @@ define('TimeEvent', [
         if (this.timeline) {
             this.timeline.remove(this);
         }
+        return this;
     };
     TimeEvent.prototype.attach = function () {
         if (this.timeline) {
             this.timeline.add(this, this.startPoint - this.delay);
         }
+        return this;
     };
     TimeEvent.prototype.delay = TimeEvent.prototype.after = function (timeOrFrame) {
         this.delay = timeOrFrame;
@@ -693,11 +695,7 @@ define('TimeEvent', [
     };
     TimeEvent.prototype.getProgress = function (timePercent) {
         if (this._ease) {
-            if (this.isRealReversed) {
-                return 1 - this._ease(1 - timePercent);
-            } else {
-                return this._ease(timePercent);
-            }
+            return this._ease(timePercent);
         } else {
             return timePercent;
         }
@@ -757,12 +755,14 @@ define('TimeEvent', [
     };
     TimeEvent.prototype.activate = function () {
         this.isActive = true;
+        return this;
     };
     TimeEvent.prototype.deactivate = function () {
         if (!this.isAlwaysActive) {
             this.isPlayheadDirty = true;
             this.isActive = false;
         }
+        return this;
     };
     TimeEvent.prototype.setRealReverse = function (opt_parentRealReversed) {
         if (opt_parentRealReversed != null) {
@@ -805,16 +805,16 @@ define('TimeEvent', [
         this.seek(duration * actualProgress);
         return this;
     };
-    TimeEvent.prototype.play = function (opt_start, opt_end, options) {
+    TimeEvent.prototype.play = function (opt_target, opt_options) {
         if (this.isPaused) {
-            if (opt_start != null) {
-                this.seek(opt_start);
+            if (opt_target != null) {
+                this.seek(opt_target);
             }
             this.resume();
         } else {
             var duration = this.getDuration();
             if (this.playhead < 0 || this.playhead >= duration) {
-                this.seek(opt_start || 0);
+                this.seek(opt_target || 0);
             }
         }
         return this;
@@ -825,6 +825,7 @@ define('TimeEvent', [
         } else {
             this.play(0);
         }
+        return this;
     };
     TimeEvent.prototype.playBackward = function () {
         if (this.isRealReversed) {
@@ -832,6 +833,7 @@ define('TimeEvent', [
         } else {
             this.reverse().play(0);
         }
+        return this;
     };
     TimeEvent.prototype.stop = function () {
         this.seek(0);
@@ -842,8 +844,10 @@ define('TimeEvent', [
         if (opt_playhead != null) {
             this.seek(opt_playhead);
         }
-        this.pausePoint = this.playhead;
-        this.isPaused = true;
+        if (!this.isPaused) {
+            this.pausePoint = this.playhead;
+            this.isPaused = true;
+        }
         return this;
     };
     TimeEvent.prototype.resume = function () {
