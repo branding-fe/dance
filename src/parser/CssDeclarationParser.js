@@ -61,20 +61,18 @@ define(function (require) {
                     unit: CssDeclarationParser._defaultUnit[property] || ''
                 };
             }
-            else {
-                value = value + '';
-                return {
-                    value: parseFloat(value),
-                    unit: value.replace(/-?[\d.]+/, '')
-                };
-            }
+            value = value + '';
+            return {
+                value: parseFloat(value),
+                unit: value.replace(/-?[\d.]+/, '')
+            };
         }
     };
 
     /**
      * 解析四个像素分量的值
-     * @type {string} value 值
-     * @type {Array.<string>} portions 分量的名称
+     * @param {string} value 值
+     * @param {Array.<string>} portions 分量的名称
      * @return {Object}
      */
     CssDeclarationParser._edgeParse = function (value, portions) {
@@ -118,14 +116,18 @@ define(function (require) {
         var processorMap = CssDeclarationParser._processorMap;
         var parsed = {};
         for (var property in declarations) {
-            var processor = processorMap[property] || CssDeclarationParser._defaultProcessor;
-            var result = processor.parse(declarations[property], property);
-            if (result.value != null && result.unit != null) {
-                parsed[property] = result;
-            }
-            else {
-                for (var key in result) {
-                    parsed[key] = result[key];
+            if (declarations.hasOwnProperty(property)) {
+                var processor = processorMap[property] || CssDeclarationParser._defaultProcessor;
+                var result = processor.parse(declarations[property], property);
+                if (result.value != null && result.unit != null) {
+                    parsed[property] = result;
+                }
+                else {
+                    for (var key in result) {
+                        if (result.hasOwnProperty(key)) {
+                            parsed[key] = result[key];
+                        }
+                    }
                 }
             }
         }

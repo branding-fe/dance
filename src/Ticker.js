@@ -28,7 +28,8 @@ define(function (require) {
     var vendors = ['ms', 'webkit', 'moz', 'o'];
     for (var i = 0; i < vendors.length && (!requestAnimationFrame || !cancelAnimationFrame); i++) {
         requestAnimationFrame = window[vendors[i] + 'RequestAnimationFrame'];
-        cancelAnimationFrame = window[vendors[i] + 'CancelAnimationFrame'] || window[vendors[i] + 'CancelRequestAnimationFrame'];
+        cancelAnimationFrame = window[vendors[i] + 'CancelAnimationFrame']
+            || window[vendors[i] + 'CancelRequestAnimationFrame'];
     }
     var isRAFSupported = requestAnimationFrame && cancelAnimationFrame;
 
@@ -36,18 +37,18 @@ define(function (require) {
      * Ticker类，控制时间节拍和帧率
      *
      * @param {?number} fps 帧率
-     * @param {Object=} opt_options 选项
-     * @param {boolean} opt_options.enableRAF 是否启用requestAnimationFrame
+     * @param {Object=} optOptions 选项
+     * @param {boolean} optOptions.enableRAF 是否启用requestAnimationFrame
      * @constructor
      */
-    function Ticker(fps, opt_options) {
+    function Ticker(fps, optOptions) {
         EventDispatcher.call(this);
 
         /**
          * 选项
          * @type {Object}
          */
-        var options = opt_options || {};
+        var options = optOptions || {};
 
         /**
          * 时间原点
@@ -220,7 +221,7 @@ define(function (require) {
      */
     Ticker.prototype.sleep = function () {
         if (this.isTicking && this.nextFrameTimer) {
-             this.cancelNextFrame(this.nextFrameTimer);
+            this.cancelNextFrame(this.nextFrameTimer);
         }
         this.isTicking = false;
         this.aliveCheckTimer && clearTimeout(this.aliveCheckTimer);
@@ -251,10 +252,10 @@ define(function (require) {
             else {
                 this.requestNextFrame = function (nextHandler) {
                     return setTimeout(nextHandler, self.nextFrameTime - self.time + 1);
-                }
+                };
                 this.cancelNextFrame = function (id) {
                     clearTimeout(id);
-                }
+                };
             }
         }
         this.tick();
@@ -272,7 +273,7 @@ define(function (require) {
 
     /**
      * 设置帧率
-     * @type {number} fps 帧率
+     * @param {number} fps 帧率
      */
     Ticker.prototype.setFps = function (fps) {
         this.fps = fps;
@@ -321,7 +322,7 @@ define(function (require) {
      * 增加下一次 tick 时需要执行的函数
      * @param {Function} fn 要执行的函数
      */
-    Ticker.prototype.nextTick = function(fn) {
+    Ticker.prototype.nextTick = function (fn) {
         this.waiting.push(fn);
     };
 

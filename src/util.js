@@ -52,7 +52,7 @@ define(function (require) {
             };
         };
 
-    var dontEnumBug = !(({ toString: 1 }).propertyIsEnumerable('toString'));
+    var dontEnumBug = !(({toString: 1}).propertyIsEnumerable('toString'));
 
     /**
      * 设置继承关系
@@ -70,7 +70,9 @@ define(function (require) {
         type.prototype = proto;
 
         for (var key in originalPrototype) {
-            proto[key] = originalPrototype[key];
+            if (originalPrototype.hasOwnProperty(key)) {
+                proto[key] = originalPrototype[key];
+            }
         }
         if (dontEnumBug) {
             if (originalPrototype.hasOwnProperty('toString')) {
@@ -99,7 +101,7 @@ define(function (require) {
      */
     util.each = function (array, iterator, context) {
         if (array == null) {
-            return array;
+            return;
         }
         var actualIterator = context == null
             ? iterator
@@ -237,7 +239,7 @@ define(function (require) {
             && util.ie && util.ie <= 8
         ) {
             style.filter = (style.filter || '').replace(/alpha\([^\)]*\)/gi, '')
-                + (value == 1 ? '' : 'alpha(opacity=' + value * 100 + ')');
+                + (value === 1 ? '' : 'alpha(opacity=' + value * 100 + ')');
             style.zoom = 1;
         }
         else {
@@ -255,7 +257,9 @@ define(function (require) {
      */
     util.setStyles = function (element, styles) {
         for (var key in styles) {
-            util.setStyle(element, key, styles[key]);
+            if (styles.hasOwnProperty(key)) {
+                util.setStyle(element, key, styles[key]);
+            }
         }
         return element;
     };

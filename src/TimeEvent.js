@@ -279,19 +279,19 @@ define(function (require) {
 
     /**
      * 渲染
-     * 1. opt_forceRender=true(例如seek(xxx)) 不触发开始或者结束事件，那么需要在下一次移动时触发
-     * 2. opt_forceRender=false 那么立即触发事件
+     * 1. optForceRender=true(例如seek(xxx)) 不触发开始或者结束事件，那么需要在下一次移动时触发
+     * 2. optForceRender=false 那么立即触发事件
      * @param {number} playhead 当前时间点
-     * @param {boolean=} opt_forceRender 是否强制渲染，为 true 则忽略一些限制
+     * @param {boolean=} optForceRender 是否强制渲染，为 true 则忽略一些限制
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.render = function (playhead, opt_forceRender) {
+    TimeEvent.prototype.render = function (playhead, optForceRender) {
         var lastPlayhead = this.playhead;
         this.playhead = playhead;
         var isPlayheadDirty = this.isPlayheadDirty;
         this.isPlayheadDirty = false;
 
-        if (!opt_forceRender && this.isPaused) {
+        if (!optForceRender && this.isPaused) {
             return this;
         }
 
@@ -300,15 +300,15 @@ define(function (require) {
 
         var duration = this.getDuration();
         // 不处于激活状态或者跟上一次相同，不需要渲染
-        // if (!this.isActive && !this.isAlwaysActive || !opt_forceRender && playhead === lastPlayhead) {
-        if (!opt_forceRender && (!this.isActive && !this.isAlwaysActive || playhead === lastPlayhead)) {
+        // if (!this.isActive && !this.isAlwaysActive || !optForceRender && playhead === lastPlayhead) {
+        if (!optForceRender && (!this.isActive && !this.isAlwaysActive || playhead === lastPlayhead)) {
             return this;
         }
 
         // 不在区域内并且是离开的方向就是"完成"
         var isFinished = false;
         var isNeedRender = true;
-        if (!opt_forceRender) {
+        if (!optForceRender) {
             if (playhead < 0) {
                 if (isPlayheadDirty) {
                     isNeedRender = false;
@@ -347,7 +347,7 @@ define(function (require) {
         // 如果是逆向，playhead 反转
         if (this.isAlwaysActive || isNeedRender) {
             var realPlayhead = this.isReversed ? duration - playhead : playhead;
-            this.internalRender(realPlayhead, opt_forceRender);
+            this.internalRender(realPlayhead, optForceRender);
             this.lastRealPlayhead = realPlayhead;
         }
 
@@ -368,9 +368,9 @@ define(function (require) {
     /**
      * 内部渲染函数：真正干活的，继承类去实现
      * @param {number} realPlayhead 播放指针实际位置
-     * @param {boolean=} opt_forceRender 是否强制渲染
+     * @param {boolean=} optForceRender 是否强制渲染
      */
-    TimeEvent.prototype.internalRender = function (realPlayhead, opt_forceRender) {};
+    TimeEvent.prototype.internalRender = function (realPlayhead, optForceRender) {};
 
     /**
      * 激活时间事件
@@ -397,12 +397,12 @@ define(function (require) {
 
     /**
      * 设置实际逆转状态
-     * @param {boolean=} opt_parentRealReversed 父时间轴是否逆转
+     * @param {boolean=} optParentRealReversed 父时间轴是否逆转
      */
-    TimeEvent.prototype.setRealReverse = function (opt_parentRealReversed) {
-        if (opt_parentRealReversed != null) {
+    TimeEvent.prototype.setRealReverse = function (optParentRealReversed) {
+        if (optParentRealReversed != null) {
             if (this.isReversed) {
-                this.isRealReversed = !opt_parentRealReversed;
+                this.isRealReversed = !optParentRealReversed;
             }
         }
         else {
@@ -412,18 +412,18 @@ define(function (require) {
 
     /**
      * 时光逆流
-     * @param {number=} opt_reversePoint 反向时间点，如果没有指定就用当前时间点
+     * @param {number=} optReversePoint 反向时间点，如果没有指定就用当前时间点
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.reverse = function (opt_reversePoint) {
+    TimeEvent.prototype.reverse = function (optReversePoint) {
         this.isReversed = !this.isReversed;
         this.setRealReverse();
         if (!this.timeline) {
             return this;
         }
         var duration = this.getDuration();
-        var reversePoint = opt_reversePoint != null
-            ? opt_reversePoint
+        var reversePoint = optReversePoint != null
+            ? optReversePoint
             : (this.isPaused ? this.pausePoint : this.playhead);
         // 限制 reversePoint 到 0 ~ duration 中
         var played = Math.min(Math.max(reversePoint, 0), duration);
@@ -462,17 +462,17 @@ define(function (require) {
     /**
      * 按指定进度挪动指针
      * @param {number} progress 进度
-     * @param {boolean} opt_reverseConsidered 是否考虑反转。
+     * @param {boolean} optReverseConsidered 是否考虑反转。
      *       提供的 progress 有两种可能：
-     *       1. progress 表示已播放的百分比，不管是否处于反转状态 (opt_reverseConsidered = false)
-     *       2. progress 表示实际指针位置 (opt_reverseConsidered = true)
+     *       1. progress 表示已播放的百分比，不管是否处于反转状态 (optReverseConsidered = false)
+     *       2. progress 表示实际指针位置 (optReverseConsidered = true)
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.seekProgress = function (progress, opt_reverseConsidered) {
+    TimeEvent.prototype.seekProgress = function (progress, optReverseConsidered) {
         var duration = this.getDuration();
-        var actualProgress = opt_reverseConsidered && this.isReversed
+        var actualProgress = optReverseConsidered && this.isReversed
             ? 1 - progress
-            : progress
+            : progress;
         this.seek(duration * actualProgress);
 
         return this;
@@ -480,21 +480,21 @@ define(function (require) {
 
     /**
      * 播放
-     * @param {number=} opt_target 指定的时间点
-     * @param {Object=} opt_options 选项
+     * @param {number=} optTarget 指定的时间点
+     * @param {Object=} optOptions 选项
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.play = function (opt_target, opt_options) {
+    TimeEvent.prototype.play = function (optTarget, optOptions) {
         if (this.isPaused) {
-            if (opt_target != null) {
-                this.seek(opt_target);
+            if (optTarget != null) {
+                this.seek(optTarget);
             }
             this.resume();
         }
         else {
             var duration = this.getDuration();
-            if (opt_target != null) {
-                this.seek(opt_target);
+            if (optTarget != null) {
+                this.seek(optTarget);
             }
             else if (this.playhead < 0 || this.playhead >= duration) {
                 this.seek(0);
@@ -545,12 +545,12 @@ define(function (require) {
 
     /**
      * 暂停
-     * @param {number=} opt_playhead 指定位置
+     * @param {number=} optPlayhead 指定位置
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.pause = function (opt_playhead) {
-        if (opt_playhead != null) {
-            this.seek(opt_playhead);
+    TimeEvent.prototype.pause = function (optPlayhead) {
+        if (optPlayhead != null) {
+            this.seek(optPlayhead);
         }
         if (!this.isPaused) {
             this.pausePoint = this.playhead;

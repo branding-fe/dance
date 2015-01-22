@@ -1,14 +1,16 @@
 /***************************************************************************
- * 
+ *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * 
+ * @author: songao(songao@baidu.com)
+ * @file: build.js
+ *
  **************************************************************************/
- 
- 
+
+
 /*
  * path:    build.js
- * desc:    
+ * desc:    打包脚本
  * author:  songao(songao@baidu.com)
  * version: $Revision$
  * date:    $Date: 2014/09/14 19:11:26$

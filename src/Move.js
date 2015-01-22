@@ -77,9 +77,11 @@ define(function (require) {
     Move.prototype.to = function (dest) {
         var declarationSet = CssDeclarationParser.parse(dest);
         for (var key in declarationSet) {
-            var bt = this.betweens[key] || new DeclarationBetween(key, this.element);
-            bt.setEnd(declarationSet[key]);
-            this.betweens[key] = bt;
+            if (declarationSet.hasOwnProperty(key)) {
+                var bt = this.betweens[key] || new DeclarationBetween(key, this.element);
+                bt.setEnd(declarationSet[key]);
+                this.betweens[key] = bt;
+            }
         }
 
         return this;
@@ -93,9 +95,11 @@ define(function (require) {
     Move.prototype.from = function (src) {
         var declarationSet = CssDeclarationParser.parse(src);
         for (var key in declarationSet) {
-            var bt = this.betweens[key] || new DeclarationBetween(key, this.element);
-            bt.setStart(declarationSet[key]);
-            this.betweens[key] = bt;
+            if (declarationSet.hasOwnProperty(key)) {
+                var bt = this.betweens[key] || new DeclarationBetween(key, this.element);
+                bt.setStart(declarationSet[key]);
+                this.betweens[key] = bt;
+            }
         }
 
         return this;
@@ -116,10 +120,9 @@ define(function (require) {
     /**
      * 渲染函数
      * @param {number} realPlayhead 实际播放位置
-     * @param {boolean=} opt_forceRender 是否强制渲染
-     * @return {Move}
+     * @param {boolean=} optForceRender 是否强制渲染
      */
-    Move.prototype.internalRender = function (realPlayhead, opt_forceRender) {
+    Move.prototype.internalRender = function (realPlayhead, optForceRender) {
         var percent;
         var duration = this.getDuration();
         if (realPlayhead >= duration) {
@@ -136,7 +139,9 @@ define(function (require) {
 
         var styles = {};
         for (var key in this.betweens) {
-            styles[key] = this.betweens[key].getValue(percent);
+            if (this.betweens.hasOwnProperty(key)) {
+                styles[key] = this.betweens[key].getValue(percent);
+            }
         }
         util.setStyles(this.element, styles);
 

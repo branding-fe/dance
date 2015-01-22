@@ -62,10 +62,10 @@ define(function (require) {
      * 触发事件
      *
      * @param {string} eventType 事件类型.
-     * @param {...*} var_args 自定义参数.
+     * @param {...*} varArgs 自定义参数.
      * @return {boolean} 返回值.
      */
-    EventDispatcher.prototype.trigger = function (eventType, var_args) {
+    EventDispatcher.prototype.trigger = function (eventType, varArgs) {
         if (!this._listeners[eventType]) {
             return true;
         }
@@ -105,9 +105,9 @@ define(function (require) {
     EventDispatcher.prototype.registerListener = function (eventType, listener) {
         var registry = EventDispatcher._registry;
         registry.push({
-            'eventType': eventType,
-            'subscriber': this,
-            'listener': listener
+            eventType: eventType,
+            subscriber: this,
+            listener: listener
         });
     };
 
@@ -121,9 +121,9 @@ define(function (require) {
         var registry = EventDispatcher._registry;
         for (var i = registry.length - 1; i >= 0; i--) {
             var item = registry[i];
-            if (item['subscriber'] === this
-                && (!eventType || eventType && item['eventType'] === eventType)
-                && (!listener || listener && item['listener'] === listener)
+            if (item.subscriber === this
+                && (!eventType || eventType && item.eventType === eventType)
+                && (!listener || listener && item.listener === listener)
             ) {
                 registry.splice(i, 1);
             }
@@ -135,17 +135,17 @@ define(function (require) {
      * 向已注册的全局监听器发布事件
      *
      * @param {string} eventType 事件类型.
-     * @param {...*} var_args 自定义参数.
+     * @param {...*} varArgs 自定义参数.
      * @return {boolean} 返回值.
      */
-    EventDispatcher.prototype.publish = function (eventType, var_args) {
+    EventDispatcher.prototype.publish = function (eventType, varArgs) {
         var registry = EventDispatcher._registry;
         var args = Array.prototype.slice.call(arguments, 1);
         var result = true;
         for (var i = 0; i < registry.length; i++) {
             var item = registry[i];
-            if (item['eventType'] === eventType
-                && false === item['listener'].apply(item['subscriber'], args)
+            if (item.eventType === eventType
+                && false === item.listener.apply(item.subscriber, args)
             ) {
                 result = false;
             }

@@ -21,7 +21,6 @@ define(function (require) {
     var util = require('./util');
     var events = require('./events');
     var TimeEvent = require('./TimeEvent');
-    var Ticker = require('./Ticker');
 
     /**
      * 时间轴基类
@@ -133,6 +132,7 @@ define(function (require) {
      * 从链表的两边往指定位置遍历
      * @param {number} point 指定位置
      * @param {Function} callback 回调
+     * @return {Timeline}
      */
     Timeline.prototype.seekForTraverse = function (point, callback) {
         var ret;
@@ -297,7 +297,7 @@ define(function (require) {
         this._duration = Math.max(0, maxRelativeEndPoint);
 
         // 时长变化，父时间线时长也可能变化，需要重新计算
-        if (lastDuration != this._duration) {
+        if (lastDuration !== this._duration) {
             if (this.timeline) {
                 this.timeline.recalcDuration();
             }
@@ -327,12 +327,10 @@ define(function (require) {
     /**
      * 渲染函数
      * @param {number} realPlayhead 实际播放位置
-     * @param {boolean=} opt_forceRender 是否强制渲染
-     * @return {Timeline}
+     * @param {boolean=} optForceRender 是否强制渲染
      */
-    Timeline.prototype.internalRender = function (realPlayhead, opt_forceRender) {
-        var that = this;
-        var traverse = opt_forceRender && this.lastRealPlayhead
+    Timeline.prototype.internalRender = function (realPlayhead, optForceRender) {
+        var traverse = optForceRender && this.lastRealPlayhead
             ? util.bind(this.seekForTraverse, this, realPlayhead)
             : (this.isRealReversed ? this.reverseTraverse : this.traverse);
         var duration = this.getDuration();
@@ -348,7 +346,7 @@ define(function (require) {
                 return;
             }
             var scaledElapsed = (realPlayhead - timeEvent.getStartPoint()) * timeEvent.getScale();
-            timeEvent.render(scaledElapsed, opt_forceRender);
+            timeEvent.render(scaledElapsed, optForceRender);
         });
         this.trigger(events.PROGRESS, progress, this.playhead);
     };
@@ -403,7 +401,9 @@ define(function (require) {
         var curRealPlayhead = this.isReversed ? duration - playhead : playhead;
         this.traverse(function (timeEvent) {
             if (isRealReversed && curRealPlayhead >= timeEvent.getStartPoint()
-                || !isRealReversed && curRealPlayhead < timeEvent.getStartPoint() + timeEvent.getDuration() / timeEvent.getScale()
+                || (!isRealReversed
+                    && curRealPlayhead < timeEvent.getStartPoint() + timeEvent.getDuration() / timeEvent.getScale()
+                )
             ) {
                 timeEvent.activate();
             }

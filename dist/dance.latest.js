@@ -434,7 +434,9 @@ define('util', ['require'], function (require) {
         var originalPrototype = type.prototype;
         type.prototype = proto;
         for (var key in originalPrototype) {
-            proto[key] = originalPrototype[key];
+            if (originalPrototype.hasOwnProperty(key)) {
+                proto[key] = originalPrototype[key];
+            }
         }
         if (dontEnumBug) {
             if (originalPrototype.hasOwnProperty('toString')) {
@@ -450,7 +452,7 @@ define('util', ['require'], function (require) {
     util.breaker = {};
     util.each = function (array, iterator, context) {
         if (array == null) {
-            return array;
+            return;
         }
         var actualIterator = context == null ? iterator : util.bind(iterator, context);
         for (var i = 0, len = array.length; i < len; i++) {
@@ -512,7 +514,7 @@ define('util', ['require'], function (require) {
         }
         var style = element.style;
         if (key === 'opacity' && util.ie && util.ie <= 8) {
-            style.filter = (style.filter || '').replace(/alpha\([^\)]*\)/gi, '') + (value == 1 ? '' : 'alpha(opacity=' + value * 100 + ')');
+            style.filter = (style.filter || '').replace(/alpha\([^\)]*\)/gi, '') + (value === 1 ? '' : 'alpha(opacity=' + value * 100 + ')');
             style.zoom = 1;
         } else {
             style[key] = value;
@@ -521,7 +523,9 @@ define('util', ['require'], function (require) {
     };
     util.setStyles = function (element, styles) {
         for (var key in styles) {
-            util.setStyle(element, key, styles[key]);
+            if (styles.hasOwnProperty(key)) {
+                util.setStyle(element, key, styles[key]);
+            }
         }
         return element;
     };
@@ -562,7 +566,7 @@ define('EventDispatcher', ['require'], function (require) {
             }
         }
     };
-    EventDispatcher.prototype.trigger = function (eventType, var_args) {
+    EventDispatcher.prototype.trigger = function (eventType, varArgs) {
         if (!this._listeners[eventType]) {
             return true;
         }
@@ -585,27 +589,27 @@ define('EventDispatcher', ['require'], function (require) {
     EventDispatcher.prototype.registerListener = function (eventType, listener) {
         var registry = EventDispatcher._registry;
         registry.push({
-            'eventType': eventType,
-            'subscriber': this,
-            'listener': listener
+            eventType: eventType,
+            subscriber: this,
+            listener: listener
         });
     };
     EventDispatcher.prototype.unregisterListener = function (eventType, listener) {
         var registry = EventDispatcher._registry;
         for (var i = registry.length - 1; i >= 0; i--) {
             var item = registry[i];
-            if (item['subscriber'] === this && (!eventType || eventType && item['eventType'] === eventType) && (!listener || listener && item['listener'] === listener)) {
+            if (item.subscriber === this && (!eventType || eventType && item.eventType === eventType) && (!listener || listener && item.listener === listener)) {
                 registry.splice(i, 1);
             }
         }
     };
-    EventDispatcher.prototype.publish = function (eventType, var_args) {
+    EventDispatcher.prototype.publish = function (eventType, varArgs) {
         var registry = EventDispatcher._registry;
         var args = Array.prototype.slice.call(arguments, 1);
         var result = true;
         for (var i = 0; i < registry.length; i++) {
             var item = registry[i];
-            if (item['eventType'] === eventType && false === item['listener'].apply(item['subscriber'], args)) {
+            if (item.eventType === eventType && false === item.listener.apply(item.subscriber, args)) {
                 result = false;
             }
         }
@@ -703,21 +707,21 @@ define('TimeEvent', [
         }
         return timePercent;
     };
-    TimeEvent.prototype.render = function (playhead, opt_forceRender) {
+    TimeEvent.prototype.render = function (playhead, optForceRender) {
         var lastPlayhead = this.playhead;
         this.playhead = playhead;
         var isPlayheadDirty = this.isPlayheadDirty;
         this.isPlayheadDirty = false;
-        if (!opt_forceRender && this.isPaused) {
+        if (!optForceRender && this.isPaused) {
             return this;
         }
         var duration = this.getDuration();
-        if (!opt_forceRender && (!this.isActive && !this.isAlwaysActive || playhead === lastPlayhead)) {
+        if (!optForceRender && (!this.isActive && !this.isAlwaysActive || playhead === lastPlayhead)) {
             return this;
         }
         var isFinished = false;
         var isNeedRender = true;
-        if (!opt_forceRender) {
+        if (!optForceRender) {
             if (playhead < 0) {
                 if (isPlayheadDirty) {
                     isNeedRender = false;
@@ -746,7 +750,7 @@ define('TimeEvent', [
         }
         if (this.isAlwaysActive || isNeedRender) {
             var realPlayhead = this.isReversed ? duration - playhead : playhead;
-            this.internalRender(realPlayhead, opt_forceRender);
+            this.internalRender(realPlayhead, optForceRender);
             this.lastRealPlayhead = realPlayhead;
         }
         if (isFinished) {
@@ -760,7 +764,7 @@ define('TimeEvent', [
         }
         return this;
     };
-    TimeEvent.prototype.internalRender = function (realPlayhead, opt_forceRender) {
+    TimeEvent.prototype.internalRender = function (realPlayhead, optForceRender) {
     };
     TimeEvent.prototype.activate = function (optPlayhead) {
         this.isActive = true;
@@ -773,23 +777,23 @@ define('TimeEvent', [
         this.isActive = false;
         return this;
     };
-    TimeEvent.prototype.setRealReverse = function (opt_parentRealReversed) {
-        if (opt_parentRealReversed != null) {
+    TimeEvent.prototype.setRealReverse = function (optParentRealReversed) {
+        if (optParentRealReversed != null) {
             if (this.isReversed) {
-                this.isRealReversed = !opt_parentRealReversed;
+                this.isRealReversed = !optParentRealReversed;
             }
         } else {
             this.isRealReversed = !this.isRealReversed;
         }
     };
-    TimeEvent.prototype.reverse = function (opt_reversePoint) {
+    TimeEvent.prototype.reverse = function (optReversePoint) {
         this.isReversed = !this.isReversed;
         this.setRealReverse();
         if (!this.timeline) {
             return this;
         }
         var duration = this.getDuration();
-        var reversePoint = opt_reversePoint != null ? opt_reversePoint : this.isPaused ? this.pausePoint : this.playhead;
+        var reversePoint = optReversePoint != null ? optReversePoint : this.isPaused ? this.pausePoint : this.playhead;
         var played = Math.min(Math.max(reversePoint, 0), duration);
         var playedNow = duration - played;
         this.setStartPoint(this.timeline.getTime() - playedNow / this.getScale());
@@ -808,22 +812,22 @@ define('TimeEvent', [
         this.render(played, true);
         return this;
     };
-    TimeEvent.prototype.seekProgress = function (progress, opt_reverseConsidered) {
+    TimeEvent.prototype.seekProgress = function (progress, optReverseConsidered) {
         var duration = this.getDuration();
-        var actualProgress = opt_reverseConsidered && this.isReversed ? 1 - progress : progress;
+        var actualProgress = optReverseConsidered && this.isReversed ? 1 - progress : progress;
         this.seek(duration * actualProgress);
         return this;
     };
-    TimeEvent.prototype.play = function (opt_target, opt_options) {
+    TimeEvent.prototype.play = function (optTarget, optOptions) {
         if (this.isPaused) {
-            if (opt_target != null) {
-                this.seek(opt_target);
+            if (optTarget != null) {
+                this.seek(optTarget);
             }
             this.resume();
         } else {
             var duration = this.getDuration();
-            if (opt_target != null) {
-                this.seek(opt_target);
+            if (optTarget != null) {
+                this.seek(optTarget);
             } else if (this.playhead < 0 || this.playhead >= duration) {
                 this.seek(0);
             }
@@ -851,9 +855,9 @@ define('TimeEvent', [
         this.pause();
         return this;
     };
-    TimeEvent.prototype.pause = function (opt_playhead) {
-        if (opt_playhead != null) {
-            this.seek(opt_playhead);
+    TimeEvent.prototype.pause = function (optPlayhead) {
+        if (optPlayhead != null) {
+            this.seek(optPlayhead);
         }
         if (!this.isPaused) {
             this.pausePoint = this.playhead;
@@ -875,160 +879,17 @@ define('TimeEvent', [
     return TimeEvent;
 });
 
-define('Ticker', [
-    'require',
-    './global',
-    './util',
-    './events',
-    './EventDispatcher'
-], function (require) {
-    var global = require('./global');
-    var util = require('./util');
-    var events = require('./events');
-    var EventDispatcher = require('./EventDispatcher');
-    var requestAnimationFrame = window.requestAnimationFrame;
-    var cancelAnimationFrame = window.cancelAnimationFrame;
-    var vendors = [
-            'ms',
-            'webkit',
-            'moz',
-            'o'
-        ];
-    for (var i = 0; i < vendors.length && (!requestAnimationFrame || !cancelAnimationFrame); i++) {
-        requestAnimationFrame = window[vendors[i] + 'RequestAnimationFrame'];
-        cancelAnimationFrame = window[vendors[i] + 'CancelAnimationFrame'] || window[vendors[i] + 'CancelRequestAnimationFrame'];
-    }
-    var isRAFSupported = requestAnimationFrame && cancelAnimationFrame;
-    function Ticker(fps, opt_options) {
-        EventDispatcher.call(this);
-        var options = opt_options || {};
-        this.startTime = this.now();
-        this.time = 0;
-        this.frame = 0;
-        this.enableRAF = options.enableRAF !== false && isRAFSupported;
-        this.lagThreshold = 400;
-        this.lagPreset = 33;
-        this.fps;
-        this.interval = 1000 / 60;
-        this.requestNextFrame;
-        this.cancelNextFrame;
-        this.nextFrameTime = this.interval;
-        this.lastTickTime = this.startTime;
-        this.nextFrameTimer;
-        this.aliveCheckTimer;
-        this.isTicking = false;
-        this.boundTick = util.bind(this.tick, this);
-        this.waiting = [];
-        this.wake();
-    }
-    util.inherits(Ticker, EventDispatcher);
-    Ticker.prototype.tick = function () {
-        var now = this.now();
-        var elapsed = now - this.lastTickTime;
-        if (elapsed > this.lagThreshold) {
-            this.startTime = this.startTime + elapsed - this.lagPreset;
-        }
-        this.time = now - this.startTime;
-        var overlap = this.time - this.nextFrameTime;
-        if (!this.fps || overlap > 0) {
-            this.frame++;
-            this.nextFrameTime += overlap >= this.interval ? overlap + 4 : this.interval;
-            if (this.fps !== 0) {
-                this.nextFrameTimer = this.requestNextFrame(this.boundTick);
-            }
-            this.trigger(events.TICK, this.time, this.frame);
-            if (this.waiting.length) {
-                for (var i = this.waiting.length - 1; i >= 0; i--) {
-                    this.waiting[i]();
-                    this.waiting.splice(i, 1);
-                }
-            }
-        }
-        this.lastTickTime = now;
-    };
-    Ticker.prototype.sleep = function () {
-        if (this.isTicking && this.nextFrameTimer) {
-            this.cancelNextFrame(this.nextFrameTimer);
-        }
-        this.isTicking = false;
-        this.aliveCheckTimer && clearTimeout(this.aliveCheckTimer);
-        this.aliveCheckTimer = null;
-    };
-    Ticker.prototype.wake = function () {
-        if (this.isTicking) {
-            this.sleep();
-        }
-        if (this.fps === 0) {
-            this.requestNextFrame = null;
-            this.cancelNextFrame = null;
-        } else {
-            var self = this;
-            if (this.enableRAF && requestAnimationFrame) {
-                this.requestNextFrame = function () {
-                    requestAnimationFrame.apply(window, arguments);
-                };
-                this.cancelNextFrame = function () {
-                    cancelAnimationFrame.apply(window, arguments);
-                };
-            } else {
-                this.requestNextFrame = function (nextHandler) {
-                    return setTimeout(nextHandler, self.nextFrameTime - self.time + 1);
-                };
-                this.cancelNextFrame = function (id) {
-                    clearTimeout(id);
-                };
-            }
-        }
-        this.tick();
-        this.isTicking = true;
-        this.aliveCheck();
-    };
-    Ticker.prototype.now = function () {
-        return Date.now ? Date.now() : new Date().getTime();
-    };
-    Ticker.prototype.setFps = function (fps) {
-        this.fps = fps;
-        this.interval = 1000 / (this.fps || 60);
-        this.nextFrameTime = this.time + this.interval;
-        this.wake();
-    };
-    Ticker.prototype.getFps = function () {
-        return this.fps;
-    };
-    Ticker.prototype.aliveCheck = function () {
-        var self = this;
-        var timeout = Math.max(2000, this.interval * 3);
-        function check(skip) {
-            if (!skip && self.isTicking && self.now() - self.lastTickTime > 1200) {
-                if (self.enableRAF && requestAnimationFrame && (!self.nextFrameTimer || self.frame < 5)) {
-                    self.enableRAF = false;
-                }
-                self.wake();
-            }
-            self.aliveCheckTimer = setTimeout(check, timeout);
-        }
-        check(true);
-    };
-    Ticker.prototype.nextTick = function (fn) {
-        this.waiting.push(fn);
-    };
-    global.ticker = new Ticker();
-    return Ticker;
-});
-
 define('Timeline', [
     'require',
     './global',
     './util',
     './events',
-    './TimeEvent',
-    './Ticker'
+    './TimeEvent'
 ], function (require) {
     var global = require('./global');
     var util = require('./util');
     var events = require('./events');
     var TimeEvent = require('./TimeEvent');
-    var Ticker = require('./Ticker');
     function Timeline() {
         TimeEvent.apply(this, arguments);
         this.render = Timeline.prototype.render;
@@ -1196,7 +1057,7 @@ define('Timeline', [
         });
         var lastDuration = this._duration;
         this._duration = Math.max(0, maxRelativeEndPoint);
-        if (lastDuration != this._duration) {
+        if (lastDuration !== this._duration) {
             if (this.timeline) {
                 this.timeline.recalcDuration();
             }
@@ -1211,9 +1072,8 @@ define('Timeline', [
         this.recalcDuration();
         return this;
     };
-    Timeline.prototype.internalRender = function (realPlayhead, opt_forceRender) {
-        var that = this;
-        var traverse = opt_forceRender && this.lastRealPlayhead ? util.bind(this.seekForTraverse, this, realPlayhead) : this.isRealReversed ? this.reverseTraverse : this.traverse;
+    Timeline.prototype.internalRender = function (realPlayhead, optForceRender) {
+        var traverse = optForceRender && this.lastRealPlayhead ? util.bind(this.seekForTraverse, this, realPlayhead) : this.isRealReversed ? this.reverseTraverse : this.traverse;
         var duration = this.getDuration();
         var progress = Math.max(Math.min(realPlayhead, duration), 0) / duration;
         if (this._ease && realPlayhead >= 0 && realPlayhead <= duration) {
@@ -1225,7 +1085,7 @@ define('Timeline', [
                 return;
             }
             var scaledElapsed = (realPlayhead - timeEvent.getStartPoint()) * timeEvent.getScale();
-            timeEvent.render(scaledElapsed, opt_forceRender);
+            timeEvent.render(scaledElapsed, optForceRender);
         });
         this.trigger(events.PROGRESS, progress, this.playhead);
     };
@@ -1304,13 +1164,12 @@ define('parser/CssDeclarationParser', [
                     value: value,
                     unit: CssDeclarationParser._defaultUnit[property] || ''
                 };
-            } else {
-                value = value + '';
-                return {
-                    value: parseFloat(value),
-                    unit: value.replace(/-?[\d.]+/, '')
-                };
             }
+            value = value + '';
+            return {
+                value: parseFloat(value),
+                unit: value.replace(/-?[\d.]+/, '')
+            };
         }
     };
     CssDeclarationParser._edgeParse = function (value, portions) {
@@ -1336,13 +1195,17 @@ define('parser/CssDeclarationParser', [
         var processorMap = CssDeclarationParser._processorMap;
         var parsed = {};
         for (var property in declarations) {
-            var processor = processorMap[property] || CssDeclarationParser._defaultProcessor;
-            var result = processor.parse(declarations[property], property);
-            if (result.value != null && result.unit != null) {
-                parsed[property] = result;
-            } else {
-                for (var key in result) {
-                    parsed[key] = result[key];
+            if (declarations.hasOwnProperty(property)) {
+                var processor = processorMap[property] || CssDeclarationParser._defaultProcessor;
+                var result = processor.parse(declarations[property], property);
+                if (result.value != null && result.unit != null) {
+                    parsed[property] = result;
+                } else {
+                    for (var key in result) {
+                        if (result.hasOwnProperty(key)) {
+                            parsed[key] = result[key];
+                        }
+                    }
                 }
             }
         }
@@ -1459,18 +1322,22 @@ define('Move', [
     Move.prototype.to = function (dest) {
         var declarationSet = CssDeclarationParser.parse(dest);
         for (var key in declarationSet) {
-            var bt = this.betweens[key] || new DeclarationBetween(key, this.element);
-            bt.setEnd(declarationSet[key]);
-            this.betweens[key] = bt;
+            if (declarationSet.hasOwnProperty(key)) {
+                var bt = this.betweens[key] || new DeclarationBetween(key, this.element);
+                bt.setEnd(declarationSet[key]);
+                this.betweens[key] = bt;
+            }
         }
         return this;
     };
     Move.prototype.from = function (src) {
         var declarationSet = CssDeclarationParser.parse(src);
         for (var key in declarationSet) {
-            var bt = this.betweens[key] || new DeclarationBetween(key, this.element);
-            bt.setStart(declarationSet[key]);
-            this.betweens[key] = bt;
+            if (declarationSet.hasOwnProperty(key)) {
+                var bt = this.betweens[key] || new DeclarationBetween(key, this.element);
+                bt.setStart(declarationSet[key]);
+                this.betweens[key] = bt;
+            }
         }
         return this;
     };
@@ -1478,7 +1345,7 @@ define('Move', [
         this.from(src).to(dest);
         return this;
     };
-    Move.prototype.internalRender = function (realPlayhead, opt_forceRender) {
+    Move.prototype.internalRender = function (realPlayhead, optForceRender) {
         var percent;
         var duration = this.getDuration();
         if (realPlayhead >= duration) {
@@ -1491,7 +1358,9 @@ define('Move', [
         this.trigger(events.BEFORE_UPDATE, percent);
         var styles = {};
         for (var key in this.betweens) {
-            styles[key] = this.betweens[key].getValue(percent);
+            if (this.betweens.hasOwnProperty(key)) {
+                styles[key] = this.betweens[key].getValue(percent);
+            }
         }
         util.setStyles(this.element, styles);
         this.trigger(events.AFTER_UPDATE, percent);

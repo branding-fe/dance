@@ -1,16 +1,16 @@
 /***************************************************************************
- * 
+ *
  * Copyright (c) 2015 Baidu.com, Inc. All Rights Reserved
  * $Id$
  * @author: songao(songao@baidu.com)
  * @file: src/parser/DeclarationBetween.js
- * 
+ *
  **************************************************************************/
- 
- 
+
+
 /*
  * path:    src/parser/DeclarationBetween.js
- * desc:    
+ * desc:    Between 计算
  * author:  songao(songao@baidu.com)
  * version: $Revision$
  * date:    $Date: 2015/01/11 16:45:10$
