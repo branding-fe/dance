@@ -209,6 +209,9 @@ define(function (require) {
                     ? (parseFloat(filter.match(/opacity=([^)]*)/)[1]) / 100) + '' : '1';
 
             }
+            else {
+                value = 0;
+            }
         }
         return value;
     };

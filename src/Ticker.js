@@ -17,6 +17,7 @@
  */
 
 define(function (require) {
+    var global = require('./global');
     var util = require('./util');
     var events = require('./events');
     var EventDispatcher = require('./EventDispatcher');
@@ -155,6 +156,12 @@ define(function (require) {
          */
         this.boundTick = util.bind(this.tick, this);
 
+        /**
+         * 等待执行的函数
+         * @type {Array.<Function>}
+         */
+        this.waiting = [];
+
         // 默认启动ticker
         this.wake();
     }
@@ -196,6 +203,13 @@ define(function (require) {
                 this.nextFrameTimer = this.requestNextFrame(this.boundTick);
             }
             this.trigger(events.TICK, this.time, this.frame);
+            if (this.waiting.length) {
+                for (var i = this.waiting.length - 1; i >= 0; i--) {
+                    this.waiting[i]();
+                    // 只删除一个，有可能在回调里又往队列里添加了元素
+                    this.waiting.splice(i, 1);
+                }
+            }
         }
 
         this.lastTickTime = now;
@@ -302,6 +316,17 @@ define(function (require) {
         }
         check(true);
     };
+
+    /**
+     * 增加下一次 tick 时需要执行的函数
+     * @param {Function} fn 要执行的函数
+     */
+    Ticker.prototype.nextTick = function(fn) {
+        this.waiting.push(fn);
+    };
+
+    // 实例化 Ticker
+    global.ticker = new Ticker();
 
     return Ticker;
 });

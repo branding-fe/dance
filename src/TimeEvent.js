@@ -17,10 +17,10 @@
  */
 
 define(function (require) {
-    var global = require('./global');
     var util = require('./util');
     var events = require('./events');
     var EventDispatcher = require('./EventDispatcher');
+    var global = require('./global');
 
     /**
      * 时间事件，是所有时间轴、动作的基类
@@ -106,7 +106,16 @@ define(function (require) {
         this.playhead = 0;
 
         /**
+         * 上一次已渲染过的时间点
+         * @type {number}
+         */
+        this.lastRealPlayhead;
+
+        /**
          * 上一次记录的当前时间或帧数是否可信
+         * 例如:
+         * 一个动作重来没有渲染过，且还没进入时间范围
+         * 或者动作结束之后进入非激活状态
          * @type {boolean}
          */
         this.isPlayheadDirty = true;
@@ -189,9 +198,15 @@ define(function (require) {
     /**
      * 设置起始时间点
      * @param {number} startPoint 起始时间点
+     * @param {boolean=} optNotSpreadUp 是否不需要往上传递
      */
-    TimeEvent.prototype.setStartPoint = function (startPoint) {
+    TimeEvent.prototype.setStartPoint = function (startPoint, optNotSpreadUp) {
         this.startPoint = startPoint;
+
+        // 起始点发生变化，需要调整在父时间轴链表上的位置
+        if (this.timeline && optNotSpreadUp !== true) {
+            this.timeline.rearrange(this);
+        }
     };
 
     /**
@@ -285,7 +300,8 @@ define(function (require) {
 
         var duration = this.getDuration();
         // 不处于激活状态或者跟上一次相同，不需要渲染
-        if (!this.isActive || playhead === lastPlayhead) {
+        // if (!this.isActive && !this.isAlwaysActive || !opt_forceRender && playhead === lastPlayhead) {
+        if (!opt_forceRender && (!this.isActive && !this.isAlwaysActive || playhead === lastPlayhead)) {
             return this;
         }
 
@@ -329,14 +345,21 @@ define(function (require) {
         }
 
         // 如果是逆向，playhead 反转
-        var realPlayhead = this.isReversed ? duration - playhead : playhead;
         if (this.isAlwaysActive || isNeedRender) {
+            var realPlayhead = this.isReversed ? duration - playhead : playhead;
             this.internalRender(realPlayhead, opt_forceRender);
+            this.lastRealPlayhead = realPlayhead;
         }
 
         if (isFinished) {
+            if (this.isActive) {
+                var self = this;
+                // 异步触发，防止事件处理函数里的逻辑影响到当前执行
+                global.ticker.nextTick(function () {
+                    self.trigger(events.AFTER_FINISH);
+                });
+            }
             this.deactivate();
-            this.trigger(events.AFTER_FINISH);
         }
 
         return this;
@@ -351,9 +374,10 @@ define(function (require) {
 
     /**
      * 激活时间事件
+     * @param {number} optPlayhead 以此时间点来设置激活状态
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.activate = function () {
+    TimeEvent.prototype.activate = function (optPlayhead) {
         this.isActive = true;
         return this;
     };
@@ -365,8 +389,9 @@ define(function (require) {
     TimeEvent.prototype.deactivate = function () {
         if (!this.isAlwaysActive) {
             this.isPlayheadDirty = true;
-            this.isActive = false;
         }
+        this.isActive = false;
+
         return this;
     };
 
@@ -405,10 +430,10 @@ define(function (require) {
 
         // 反转之后的已播放时长
         var playedNow = duration - played;
-        this.startPoint = this.timeline.getTime() - playedNow / this.getScale();
+        this.setStartPoint(this.timeline.getTime() - playedNow / this.getScale());
         // FIXME: 边界情况？reverse(0) 之类的
         this.playhead = playedNow;
-        this.rearrange();
+        this.activate();
 
         return this;
     };
@@ -423,12 +448,12 @@ define(function (require) {
         // 限制 targetPoint 到 0 ~ duration 中
         var played = Math.min(Math.max(targetPoint, 0), duration);
 
-        this.startPoint = this.timeline.getTime() - played / this.getScale();
+        this.setStartPoint(this.timeline.getTime() - played / this.getScale());
         if (this.isPaused) {
             this.pausePoint = played;
         }
-        this.rearrange();
 
+        this.activate(played);
         this.render(played, true);
 
         return this;
@@ -468,8 +493,11 @@ define(function (require) {
         }
         else {
             var duration = this.getDuration();
-            if (this.playhead < 0 || this.playhead >= duration) {
-                this.seek(opt_target || 0);
+            if (opt_target != null) {
+                this.seek(opt_target);
+            }
+            else if (this.playhead < 0 || this.playhead >= duration) {
+                this.seek(0);
             }
         }
 
@@ -544,7 +572,7 @@ define(function (require) {
         var duration = this.getDuration();
         // 限制到 0 ~ duration 中
         var played = Math.min(Math.max(this.pausePoint, 0), duration);
-        this.startPoint = this.timeline.getTime() - played / this.getScale();
+        this.setStartPoint(this.timeline.getTime() - played / this.getScale());
         this.isPaused = false;
         this.pausePoint = null;
 

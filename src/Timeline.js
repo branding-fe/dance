@@ -66,9 +66,10 @@ define(function (require) {
      * 允许添加任何TimeEvent类型的对象，例如Move、PauseEvent等，甚至可以添加时间轴对象Timeline
      *
      * @param {TimeEvent} timeEvent 时间事件
+     * @param {number} optInsertPoint 时间事件
      * @return {Timeline}
      */
-    Timeline.prototype.add = function (timeEvent) {
+    Timeline.prototype.add = function (timeEvent, optInsertPoint) {
         if (!timeEvent instanceof TimeEvent) {
             throw 'Only TimeEvent could be added to Timeline!';
         }
@@ -80,13 +81,17 @@ define(function (require) {
         if (timeEvent.isAttached()) {
             timeEvent.detach();
         }
-        // FIXME: this.startPoint 同样需要更新
         timeEvent.setTimeline(this);
-        timeEvent.setStartPoint(this.playhead);
+        timeEvent.setStartPoint(optInsertPoint != null ? optInsertPoint : this.playhead, true);
         timeEvent.setRealReverse(this.isRealReversed);
+
+        // 记录最后一个添加的时间事件
         this._lastTimeEvent = timeEvent;
+        // 插入链表
         this.enqueue(timeEvent);
-        this.rearrange();
+        // 加入一个之后，时长可能变化，需要重新计算
+        this.recalcDuration();
+
         return this;
     };
 
@@ -129,47 +134,42 @@ define(function (require) {
      * @param {number} point 指定位置
      * @param {Function} callback 回调
      */
-    Timeline.prototype.outInTraverse = function (point, callback) {
-        var isBreaked = false;
+    Timeline.prototype.seekForTraverse = function (point, callback) {
         var ret;
         var timeEvent;
-        if (this.listHead) {
-            timeEvent = this.listHead;
-            // FIXME: 临界点
-            while (timeEvent) {
-                if (point < timeEvent.getStartPoint()
-                    || (!this.isRealReversed
-                        && point === timeEvent.getStartPoint()
-                    )
-                ) {
-                    break;
+        var startPoint;
+        var lastPoint = this.lastRealPlayhead;
+        if (point > lastPoint) {
+            if (this.listHead) {
+                timeEvent = this.listHead;
+                // FIXME: 临界点
+                while (timeEvent) {
+                    startPoint = timeEvent.getStartPoint();
+                    if (point < startPoint) {
+                        break;
+                    }
+                    ret = callback(timeEvent);
+                    if (ret === util.breaker) {
+                        break;
+                    }
+                    timeEvent = timeEvent.next;
                 }
-                ret = callback(timeEvent);
-                if (ret === util.breaker) {
-                    isBreaked = true;
-                    break;
-                }
-                timeEvent = timeEvent.next;
             }
         }
-        if (isBreaked) {
-            return this;
-        }
-        if (this.listTail) {
-            timeEvent = this.listTail;
-            while (timeEvent) {
-                if (point > timeEvent.getStartPoint()
-                    || (this.isRealReversed
-                        && point === timeEvent.getStartPoint()
-                    )
-                ) {
-                    break;
+        else {
+            if (this.listTail) {
+                timeEvent = this.listTail;
+                while (timeEvent) {
+                    startPoint = timeEvent.getStartPoint();
+                    if (point > startPoint + timeEvent.getDuration() / timeEvent.getScale()) {
+                        break;
+                    }
+                    ret = callback(timeEvent);
+                    if (ret === util.breaker) {
+                        break;
+                    }
+                    timeEvent = timeEvent.prev;
                 }
-                ret = callback(timeEvent);
-                if (ret === util.breaker) {
-                    break;
-                }
-                timeEvent = timeEvent.prev;
             }
         }
         return this;
@@ -248,7 +248,7 @@ define(function (require) {
     Timeline.prototype.at = function (timeOrFrame) {
         if (this._lastTimeEvent) {
             this._lastTimeEvent.setStartPoint(timeOrFrame);
-            this.rearrange();
+            this.rearrange(this._lastTimeEvent);
         }
 
         return this;
@@ -261,7 +261,8 @@ define(function (require) {
      */
     Timeline.prototype.remove = function (target) {
         this.dequeue(target);
-        this.rearrange();
+        // 删除了元素，时长可能变化
+        this.recalcDuration();
 
         return this;
     };
@@ -274,16 +275,17 @@ define(function (require) {
     Timeline.prototype.scale = function (scale) {
         TimeEvent.prototype.scale.apply(this, arguments);
 
-        this.rearrange();
+        // 进行了时间轴缩放，时长可能变化
+        this.recalcDuration();
 
         return this;
     };
 
     /**
-     * 对时间轴进行整理，计算有动画的时长
+     * 重新计算动画时长
      * @return {Timeline}
      */
-    Timeline.prototype.rearrange = function () {
+    Timeline.prototype.recalcDuration = function () {
         var maxRelativeEndPoint = -Infinity;
         this.traverse(function (timeEvent) {
             var relativeEndPoint = timeEvent.getStartPoint() + timeEvent.getDuration() / timeEvent.getScale();
@@ -291,12 +293,33 @@ define(function (require) {
                 maxRelativeEndPoint = relativeEndPoint;
             }
         });
+        var lastDuration = this._duration;
         this._duration = Math.max(0, maxRelativeEndPoint);
 
-        if (this.timeline) {
-            this.timeline.rearrange();
+        // 时长变化，父时间线时长也可能变化，需要重新计算
+        if (lastDuration != this._duration) {
+            if (this.timeline) {
+                this.timeline.recalcDuration();
+            }
+            // 时长变化，可能进入激活区域，因此先激活看看
+            if (this.playhead >= 0 && this.playhead <= this._duration) {
+                this.activate();
+            }
         }
-        this.activate();
+
+        return this;
+    };
+
+    /**
+     * 对时间轴进行调整
+     * @param {TimeEvent} timeEvent 需要调整的时间事件
+     * @return {Timeline}
+     */
+    Timeline.prototype.rearrange = function (timeEvent) {
+        this.remove(timeEvent).add(timeEvent, timeEvent.getStartPoint());
+
+        // 调整了位置，可能改变时长，重新计算
+        this.recalcDuration();
 
         return this;
     };
@@ -309,8 +332,8 @@ define(function (require) {
      */
     Timeline.prototype.internalRender = function (realPlayhead, opt_forceRender) {
         var that = this;
-        var traverse = opt_forceRender
-            ? util.bind(this.outInTraverse, this, realPlayhead)
+        var traverse = opt_forceRender && this.lastRealPlayhead
+            ? util.bind(this.seekForTraverse, this, realPlayhead)
             : (this.isRealReversed ? this.reverseTraverse : this.traverse);
         var duration = this.getDuration();
         var progress = Math.max(Math.min(realPlayhead, duration), 0) / duration;
@@ -321,10 +344,9 @@ define(function (require) {
             realPlayhead = realPlayhead * progress;
         }
         traverse.call(this, function (timeEvent) {
-            if (!timeEvent.isActive) {
+            if (!timeEvent.isActive && !timeEvent.isAlwaysActive) {
                 return;
             }
-            // TODO: scale delay from startPoint?
             var scaledElapsed = (realPlayhead - timeEvent.getStartPoint()) * timeEvent.getScale();
             timeEvent.render(scaledElapsed, opt_forceRender);
         });
@@ -369,13 +391,22 @@ define(function (require) {
 
     /**
      * 激活时间轴上所有的动画
+     * @param {number} optPlayhead 以此时间点来设置激活状态
      * @return {Timeline}
      */
-    Timeline.prototype.activate = function () {
+    Timeline.prototype.activate = function (optPlayhead) {
         TimeEvent.prototype.activate.apply(this, arguments);
 
+        var isRealReversed = this.isRealReversed;
+        var duration = this.getDuration();
+        var playhead = optPlayhead != null ? optPlayhead : this.playhead;
+        var curRealPlayhead = this.isReversed ? duration - playhead : playhead;
         this.traverse(function (timeEvent) {
-            timeEvent.activate();
+            if (isRealReversed && curRealPlayhead >= timeEvent.getStartPoint()
+                || !isRealReversed && curRealPlayhead < timeEvent.getStartPoint() + timeEvent.getDuration() / timeEvent.getScale()
+            ) {
+                timeEvent.activate();
+            }
         });
 
         return this;
@@ -394,8 +425,6 @@ define(function (require) {
             return this;
         };
 
-    // 实例化 Ticker
-    global.ticker = new Ticker();
     // 生成两个默认时间轴
     // 一个是毫秒计数的，一个是帧数计数的
     global.rootTimeline = new Timeline();
