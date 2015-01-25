@@ -2,19 +2,16 @@
  *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * @author: songao(songao@baidu.com)
- * @file: src/util.js
+ *
+ * @file:    src/util.js
+ * @author:  songao(songao@baidu.com)
+ * @version: $Revision$
+ * @date:    $Date: 2014/12/11 13:03:24$
+ * @desc:    工具集
  *
  **************************************************************************/
 
-
-/*
- * path:    src/util.js
- * desc:    工具集
- * author:  songao(songao@baidu.com)
- * version: $Revision$
- * date:    $Date: 2014/12/11 13:03:24$
- */
+/* eslint-disable dot-notation */
 
 define(function (require) {
     var util = {};

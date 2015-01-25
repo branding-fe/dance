@@ -2,19 +2,15 @@
  *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * @author: songao(songao@baidu.com)
- * @file: src/global.js
+ *
+ * @file:    src/global.js
+ * @author:  songao(songao@baidu.com)
+ * @version: $Revision$
+ * @date:    $Date: 2014/12/16 10:21:54$
+ * @desc:    全局对象
  *
  **************************************************************************/
 
-
-/*
- * path:    src/global.js
- * desc:    全局对象
- * author:  songao(songao@baidu.com)
- * version: $Revision$
- * date:    $Date: 2014/12/16 10:21:54$
- */
 
 define(function (require) {
     /**

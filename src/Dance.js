@@ -2,19 +2,15 @@
  *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * @author: songao(songao@baidu.com)
- * @file: src/Dance.js
+ *
+ * @file:    src/Dance.js
+ * @author:  songao(songao@baidu.com)
+ * @version: $Revision$
+ * @date:    $Date: 2014/12/11 12:57:29$
+ * @desc:    时间轴，同时封装了一些静态方法供外部调用
  *
  **************************************************************************/
 
-
-/*
- * path:    src/Dance.js
- * desc:    时间轴，同时封装了一些静态方法供外部调用
- * author:  songao(songao@baidu.com)
- * version: $Revision$
- * date:    $Date: 2014/12/11 12:57:29$
- */
 
 define(function (require) {
     var global = require('./global');

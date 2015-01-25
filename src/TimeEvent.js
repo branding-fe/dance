@@ -2,19 +2,16 @@
  *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * @author: songao(songao@baidu.com)
- * @file: src/TimeEvent.js
+ *
+ * @file:    src/TimeEvent.js
+ * @author:  songao(songao@baidu.com)
+ * @version: $Revision$
+ * @date:    $Date: 2014/12/15 10:55:43$
+ * @desc:    时间事件，是所有时间轴、动画片段的基类，任何跟时间相关的对象都可以抽象为时间事件
  *
  **************************************************************************/
 
-
-/*
- * path:    src/TimeEvent.js
- * desc:    时间事件，是所有时间轴、动画片段的基类，任何跟时间相关的对象都可以抽象为时间事件
- * author:  songao(songao@baidu.com)
- * version: $Revision$
- * date:    $Date: 2014/12/15 10:55:43$
- */
+/* eslint-disable dot-notation */
 
 define(function (require) {
     var util = require('./util');

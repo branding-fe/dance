@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8" />
     <title>Dance - A JavaScript animation framework.</title>
-    <script type="text/javascript" src="http://s1.bdstatic.com/r/www/cache/ecom/esl/1-8-2/esl.js"></script>
-    <script type="text/javascript" src="http://cdn.staticfile.org/jquery/1.11.1/jquery.min.js"></script>
-    <script type="text/javascript" src="../dist/dance.latest.min.js"></script>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <meta name="viewport" content="width=device-width, height=device-height, inital-scale=1.0, maximum-scale=1.0, user-scalable=no;">
     <style type="text/css">
     body {padding:0;margin:0;}
     #ticker {
@@ -83,7 +82,10 @@
     <a id="reverse" href="#">反转</a>
     <a id="stop" href="#">停止</a>
 </div>
-<script type="text/javascript">
+<script src="http://s1.bdstatic.com/r/www/cache/ecom/esl/1-8-2/esl.js"></script>
+<script src="http://cdn.staticfile.org/jquery/1.11.1/jquery.min.js"></script>
+<script src="../dist/dance.latest.min.js"></script>
+<script>
 (function() {
     var Ticker = Dance.Ticker;
     var ticker = new Ticker();

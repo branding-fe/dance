@@ -2,19 +2,15 @@
  *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * @author: songao(songao@baidu.com)
- * @file: src/EventDispatcher.js
+ *
+ * @file:    src/EventDispatcher.js
+ * @author:  songao(songao@baidu.com)
+ * @version: $Revision$
+ * @date:    $Date: 2014/12/11 13:40:36$
+ * @desc:    事件派发器
  *
  **************************************************************************/
 
-
-/*
- * path:    src/EventDispatcher.js
- * desc:    事件派发器
- * author:  songao(songao@baidu.com)
- * version: $Revision$
- * date:    $Date: 2014/12/11 13:40:36$
- */
 
 define(function (require) {
     /**

@@ -2,19 +2,15 @@
  *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * @author: songao(songao@baidu.com)
- * @file: src/Ticker.js
+ *
+ * @file:    src/Ticker.js
+ * @author:  songao(songao@baidu.com)
+ * @version: $Revision$
+ * @date:    $Date: 2014/12/11 13:02:04$
+ * @desc:    节拍器
  *
  **************************************************************************/
 
-
-/*
- * path:    src/Ticker.js
- * desc:    节拍器
- * author:  songao(songao@baidu.com)
- * version: $Revision$
- * date:    $Date: 2014/12/11 13:02:04$
- */
 
 define(function (require) {
     var global = require('./global');

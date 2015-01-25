@@ -2,19 +2,16 @@
  *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * @author: songao(songao@baidu.com)
- * @file: src/Move.js
+ *
+ * @file:    src/Move.js
+ * @author:  songao(songao@baidu.com)
+ * @version: $Revision$
+ * @date:    $Date: 2014/12/11 12:57:35$
+ * @desc:    动作类
  *
  **************************************************************************/
 
-
-/*
- * path:    src/Move.js
- * desc:    动作类
- * author:  songao(songao@baidu.com)
- * version: $Revision$
- * date:    $Date: 2014/12/11 12:57:35$
- */
+/* eslint-disable dot-notation */
 
 define(function (require) {
     var util = require('./util');

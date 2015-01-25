@@ -2,19 +2,15 @@
  *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * @author: songao(songao@baidu.com)
- * @file: src/Timeline.js
+ *
+ * @file:    src/Timeline.js
+ * @author:  songao(songao@baidu.com)
+ * @version: $Revision$
+ * @date:    $Date: 2014/12/11 12:58:06$
+ * @desc:    时间轴基类
  *
  **************************************************************************/
 
-
-/*
- * path:    src/Timeline.js
- * desc:    时间轴基类
- * author:  songao(songao@baidu.com)
- * version: $Revision$
- * date:    $Date: 2014/12/11 12:58:06$
- */
 
 define(function (require) {
     var global = require('./global');
