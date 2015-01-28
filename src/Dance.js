@@ -35,6 +35,11 @@ define(function (require) {
 
     // --------- 下面是各种静态方法 ----------- //
 
+    Dance.dispose = function () {
+        global.rootFrameTimeline.dispose();
+        global.rootTimeline.dispose();
+    };
+
     /**
      * 配置默认参数
      * @param {string} key 键

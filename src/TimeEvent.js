@@ -52,7 +52,7 @@ define(function (require) {
          * 时间事件开始之前的delay
          * @type {number}
          */
-        this.delay = options['delay'];
+        this._delay = options['delay'] || 0;
 
         /**
          * 持续时间或者持续帧数
@@ -148,6 +148,14 @@ define(function (require) {
     };
 
     /**
+     * 获取延迟
+     * @return {number}
+     */
+    TimeEvent.prototype.getDelay = function () {
+        return this._delay;
+    };
+
+    /**
      * 获取时间缩放比例
      * @return {number}
      */
@@ -232,7 +240,7 @@ define(function (require) {
      */
     TimeEvent.prototype.attach = function () {
         if (this.timeline) {
-            this.timeline.add(this, this.startPoint - this.delay);
+            this.timeline.add(this);
         }
 
         return this;
@@ -246,7 +254,8 @@ define(function (require) {
     TimeEvent.prototype.delay
         = TimeEvent.prototype.after
         = function (timeOrFrame) {
-            this.delay = timeOrFrame;
+            this.setStartPoint(this.getStartPoint() + timeOrFrame - this._delay);
+            this._delay = timeOrFrame;
 
             return this;
         };

@@ -17,6 +17,7 @@ define(function (require) {
     var util = require('./util');
     var events = require('./events');
     var TimeEvent = require('./TimeEvent');
+    var Ticker = require('./Ticker');
 
     /**
      * 时间轴基类
@@ -77,7 +78,7 @@ define(function (require) {
             timeEvent.detach();
         }
         timeEvent.setTimeline(this);
-        timeEvent.setStartPoint(optInsertPoint != null ? optInsertPoint : this.playhead, true);
+        timeEvent.setStartPoint((optInsertPoint != null ? optInsertPoint : this.playhead) - timeEvent.getDelay(), true);
         timeEvent.setRealReverse(this.isRealReversed);
 
         // 记录最后一个添加的时间事件
@@ -420,6 +421,21 @@ define(function (require) {
 
             return this;
         };
+
+    Timeline.prototype.dispose = function() {
+        if (this.listHead) {
+            var timeEvent = this.listHead;
+            var toRemove = null;
+            while (timeEvent) {
+                toRemove = timeEvent;
+                timeEvent = timeEvent.next;
+                this.remove(toRemove);
+            }
+        }
+    };
+
+    // 实例化 Ticker
+    global.ticker = new Ticker();
 
     // 生成两个默认时间轴
     // 一个是毫秒计数的，一个是帧数计数的

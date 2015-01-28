@@ -13,7 +13,6 @@
 
 
 define(function (require) {
-    var global = require('./global');
     var util = require('./util');
     var events = require('./events');
     var EventDispatcher = require('./EventDispatcher');
@@ -321,9 +320,6 @@ define(function (require) {
     Ticker.prototype.nextTick = function (fn) {
         this.waiting.push(fn);
     };
-
-    // 实例化 Ticker
-    global.ticker = new Ticker();
 
     return Ticker;
 });

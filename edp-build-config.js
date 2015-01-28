@@ -11,7 +11,6 @@
  *
  **************************************************************************/
 
-
 /* eslint-env node */
 /* global LessCompiler, CssCompressor, ModuleCompiler, JsCompressor, PathMapper, AddCopyright */
 

@@ -634,7 +634,7 @@ define('TimeEvent', [
         options = options || {};
         this.isInFrame = options['isInFrame'] || false;
         this.startPoint = options['startPoint'] || 0;
-        this.delay = options['delay'];
+        this._delay = options['delay'] || 0;
         this._duration = options['duration'] != null ? options['duration'] : Infinity;
         this._scale = options['scale'] || 1;
         this.timeline = options['timeline'];
@@ -654,6 +654,9 @@ define('TimeEvent', [
     };
     TimeEvent.prototype.getDuration = function () {
         return this._duration;
+    };
+    TimeEvent.prototype.getDelay = function () {
+        return this._delay;
     };
     TimeEvent.prototype.getScale = function () {
         return this._scale;
@@ -689,12 +692,13 @@ define('TimeEvent', [
     };
     TimeEvent.prototype.attach = function () {
         if (this.timeline) {
-            this.timeline.add(this, this.startPoint - this.delay);
+            this.timeline.add(this);
         }
         return this;
     };
     TimeEvent.prototype.delay = TimeEvent.prototype.after = function (timeOrFrame) {
-        this.delay = timeOrFrame;
+        this.setStartPoint(this.getStartPoint() + timeOrFrame - this._delay);
+        this._delay = timeOrFrame;
         return this;
     };
     TimeEvent.prototype.ease = function (ease) {
@@ -879,17 +883,157 @@ define('TimeEvent', [
     return TimeEvent;
 });
 
+define('Ticker', [
+    'require',
+    './util',
+    './events',
+    './EventDispatcher'
+], function (require) {
+    var util = require('./util');
+    var events = require('./events');
+    var EventDispatcher = require('./EventDispatcher');
+    var requestAnimationFrame = window.requestAnimationFrame;
+    var cancelAnimationFrame = window.cancelAnimationFrame;
+    var vendors = [
+            'ms',
+            'webkit',
+            'moz',
+            'o'
+        ];
+    for (var i = 0; i < vendors.length && (!requestAnimationFrame || !cancelAnimationFrame); i++) {
+        requestAnimationFrame = window[vendors[i] + 'RequestAnimationFrame'];
+        cancelAnimationFrame = window[vendors[i] + 'CancelAnimationFrame'] || window[vendors[i] + 'CancelRequestAnimationFrame'];
+    }
+    var isRAFSupported = requestAnimationFrame && cancelAnimationFrame;
+    function Ticker(fps, optOptions) {
+        EventDispatcher.call(this);
+        var options = optOptions || {};
+        this.startTime = this.now();
+        this.time = 0;
+        this.frame = 0;
+        this.enableRAF = options.enableRAF !== false && isRAFSupported;
+        this.lagThreshold = 400;
+        this.lagPreset = 33;
+        this.fps;
+        this.interval = 1000 / 60;
+        this.requestNextFrame;
+        this.cancelNextFrame;
+        this.nextFrameTime = this.interval;
+        this.lastTickTime = this.startTime;
+        this.nextFrameTimer;
+        this.aliveCheckTimer;
+        this.isTicking = false;
+        this.boundTick = util.bind(this.tick, this);
+        this.waiting = [];
+        this.wake();
+    }
+    util.inherits(Ticker, EventDispatcher);
+    Ticker.prototype.tick = function () {
+        var now = this.now();
+        var elapsed = now - this.lastTickTime;
+        if (elapsed > this.lagThreshold) {
+            this.startTime = this.startTime + elapsed - this.lagPreset;
+        }
+        this.time = now - this.startTime;
+        var overlap = this.time - this.nextFrameTime;
+        if (!this.fps || overlap > 0) {
+            this.frame++;
+            this.nextFrameTime += overlap >= this.interval ? overlap + 4 : this.interval;
+            if (this.fps !== 0) {
+                this.nextFrameTimer = this.requestNextFrame(this.boundTick);
+            }
+            this.trigger(events.TICK, this.time, this.frame);
+            if (this.waiting.length) {
+                for (var i = this.waiting.length - 1; i >= 0; i--) {
+                    this.waiting[i]();
+                    this.waiting.splice(i, 1);
+                }
+            }
+        }
+        this.lastTickTime = now;
+    };
+    Ticker.prototype.sleep = function () {
+        if (this.isTicking && this.nextFrameTimer) {
+            this.cancelNextFrame(this.nextFrameTimer);
+        }
+        this.isTicking = false;
+        this.aliveCheckTimer && clearTimeout(this.aliveCheckTimer);
+        this.aliveCheckTimer = null;
+    };
+    Ticker.prototype.wake = function () {
+        if (this.isTicking) {
+            this.sleep();
+        }
+        if (this.fps === 0) {
+            this.requestNextFrame = null;
+            this.cancelNextFrame = null;
+        } else {
+            var self = this;
+            if (this.enableRAF && requestAnimationFrame) {
+                this.requestNextFrame = function () {
+                    requestAnimationFrame.apply(window, arguments);
+                };
+                this.cancelNextFrame = function () {
+                    cancelAnimationFrame.apply(window, arguments);
+                };
+            } else {
+                this.requestNextFrame = function (nextHandler) {
+                    return setTimeout(nextHandler, self.nextFrameTime - self.time + 1);
+                };
+                this.cancelNextFrame = function (id) {
+                    clearTimeout(id);
+                };
+            }
+        }
+        this.tick();
+        this.isTicking = true;
+        this.aliveCheck();
+    };
+    Ticker.prototype.now = function () {
+        return Date.now ? Date.now() : new Date().getTime();
+    };
+    Ticker.prototype.setFps = function (fps) {
+        this.fps = fps;
+        this.interval = 1000 / (this.fps || 60);
+        this.nextFrameTime = this.time + this.interval;
+        this.wake();
+    };
+    Ticker.prototype.getFps = function () {
+        return this.fps;
+    };
+    Ticker.prototype.aliveCheck = function () {
+        var self = this;
+        var timeout = Math.max(2000, this.interval * 3);
+        function check(skip) {
+            if (!skip && self.isTicking && self.now() - self.lastTickTime > 1200) {
+                if (self.enableRAF && requestAnimationFrame && (!self.nextFrameTimer || self.frame < 5)) {
+                    self.enableRAF = false;
+                }
+                self.wake();
+            }
+            self.aliveCheckTimer = setTimeout(check, timeout);
+        }
+        check(true);
+    };
+    Ticker.prototype.nextTick = function (fn) {
+        this.waiting.push(fn);
+    };
+    return Ticker;
+});
+
 define('Timeline', [
     'require',
     './global',
     './util',
     './events',
-    './TimeEvent'
+    './TimeEvent',
+    './Ticker'
 ], function (require) {
     var global = require('./global');
     var util = require('./util');
     var events = require('./events');
     var TimeEvent = require('./TimeEvent');
+    var Ticker = require('./Ticker');
     function Timeline() {
         TimeEvent.apply(this, arguments);
         this.render = Timeline.prototype.render;
@@ -910,7 +1054,7 @@ define('Timeline', [
             timeEvent.detach();
         }
         timeEvent.setTimeline(this);
-        timeEvent.setStartPoint(optInsertPoint != null ? optInsertPoint : this.playhead, true);
+        timeEvent.setStartPoint((optInsertPoint != null ? optInsertPoint : this.playhead) - timeEvent.getDelay(), true);
         timeEvent.setRealReverse(this.isRealReversed);
         this._lastTimeEvent = timeEvent;
         this.enqueue(timeEvent);
@@ -1123,6 +1267,18 @@ define('Timeline', [
         this.scale(scale);
         return this;
     };
+    Timeline.prototype.dispose = function () {
+        if (this.listHead) {
+            var timeEvent = this.listHead;
+            var toRemove = null;
+            while (timeEvent) {
+                toRemove = timeEvent;
+                timeEvent = timeEvent.next;
+                this.remove(toRemove);
+            }
+        }
+    };
+    global.ticker = new Ticker();
     global.rootTimeline = new Timeline();
     global.rootFrameTimeline = new Timeline({ 'isInFrame': true });
     global.ticker.addListener(events.TICK, function (time, frame) {
@@ -1755,6 +1911,10 @@ define('Dance', [
         this.render = Dance.prototype.render;
     }
     util.inherits(Dance, Timeline);
+    Dance.dispose = function () {
+        global.rootFrameTimeline.dispose();
+        global.rootTimeline.dispose();
+    };
     Dance.defaults = function (key, value) {
         global.defaults[key] = value;
     };
