@@ -1,20 +1,22 @@
 /***************************************************************************
- * 
+ *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * 
+ *
+ * @file:    src/events.js
+ * @author:  songao(songao@baidu.com)
+ * @version: $Revision$
+ * @date:    $Date: 2014/12/11 19:36:30$
+ * @desc:    各种事件
+ *
  **************************************************************************/
- 
- 
-/*
- * path:    src/events.js
- * desc:    
- * author:  songao(songao@baidu.com)
- * version: $Revision$
- * date:    $Date: 2014/12/11 19:36:30$
- */
 
-define(function(require) {
+
+define(function (require) {
+    /**
+     * 各种事件
+     * @type {Object}
+     */
     var events = {
         'TICK': 'tick',
         'START': 'start',

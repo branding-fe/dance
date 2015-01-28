@@ -1,20 +1,18 @@
 /***************************************************************************
- * 
+ *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * 
+ *
+ * @file:    src/Ticker.js
+ * @author:  songao(songao@baidu.com)
+ * @version: $Revision$
+ * @date:    $Date: 2014/12/11 13:02:04$
+ * @desc:    节拍器
+ *
  **************************************************************************/
- 
- 
-/*
- * path:    src/Ticker.js
- * desc:    
- * author:  songao(songao@baidu.com)
- * version: $Revision$
- * date:    $Date: 2014/12/11 13:02:04$
- */
 
-define(function(require) {
+
+define(function (require) {
     var util = require('./util');
     var events = require('./events');
     var EventDispatcher = require('./EventDispatcher');
@@ -25,7 +23,8 @@ define(function(require) {
     var vendors = ['ms', 'webkit', 'moz', 'o'];
     for (var i = 0; i < vendors.length && (!requestAnimationFrame || !cancelAnimationFrame); i++) {
         requestAnimationFrame = window[vendors[i] + 'RequestAnimationFrame'];
-        cancelAnimationFrame = window[vendors[i] + 'CancelAnimationFrame'] || window[vendors[i] + 'CancelRequestAnimationFrame'];
+        cancelAnimationFrame = window[vendors[i] + 'CancelAnimationFrame']
+            || window[vendors[i] + 'CancelRequestAnimationFrame'];
     }
     var isRAFSupported = requestAnimationFrame && cancelAnimationFrame;
 
@@ -33,18 +32,18 @@ define(function(require) {
      * Ticker类，控制时间节拍和帧率
      *
      * @param {?number} fps 帧率
-     * @param {Object=} opt_options 选项
-     * @param {boolean} opt_options.enableRAF 是否启用requestAnimationFrame
+     * @param {Object=} optOptions 选项
+     * @param {boolean} optOptions.enableRAF 是否启用requestAnimationFrame
      * @constructor
      */
-    function Ticker(fps, opt_options) {
+    function Ticker(fps, optOptions) {
         EventDispatcher.call(this);
 
         /**
          * 选项
          * @type {Object}
          */
-        var options = opt_options || {};
+        var options = optOptions || {};
 
         /**
          * 时间原点
@@ -153,6 +152,12 @@ define(function(require) {
          */
         this.boundTick = util.bind(this.tick, this);
 
+        /**
+         * 等待执行的函数
+         * @type {Array.<Function>}
+         */
+        this.waiting = [];
+
         // 默认启动ticker
         this.wake();
     }
@@ -162,7 +167,7 @@ define(function(require) {
     /**
      * 一次节拍
      */
-    Ticker.prototype.tick = function() {
+    Ticker.prototype.tick = function () {
         var now = this.now();
 
         // 从上一次tick到现在这次tick消耗的时间
@@ -194,6 +199,13 @@ define(function(require) {
                 this.nextFrameTimer = this.requestNextFrame(this.boundTick);
             }
             this.trigger(events.TICK, this.time, this.frame);
+            if (this.waiting.length) {
+                for (var i = this.waiting.length - 1; i >= 0; i--) {
+                    this.waiting[i]();
+                    // 只删除一个，有可能在回调里又往队列里添加了元素
+                    this.waiting.splice(i, 1);
+                }
+            }
         }
 
         this.lastTickTime = now;
@@ -202,9 +214,9 @@ define(function(require) {
     /**
      * 让ticker暂停
      */
-    Ticker.prototype.sleep = function() {
+    Ticker.prototype.sleep = function () {
         if (this.isTicking && this.nextFrameTimer) {
-             this.cancelNextFrame(this.nextFrameTimer);
+            this.cancelNextFrame(this.nextFrameTimer);
         }
         this.isTicking = false;
         this.aliveCheckTimer && clearTimeout(this.aliveCheckTimer);
@@ -214,7 +226,7 @@ define(function(require) {
     /**
      * 唤醒ticker
      */
-    Ticker.prototype.wake = function() {
+    Ticker.prototype.wake = function () {
         if (this.isTicking) {
             this.sleep();
         }
@@ -225,20 +237,20 @@ define(function(require) {
         else {
             var self = this;
             if (this.enableRAF && requestAnimationFrame) {
-                this.requestNextFrame = function() {
+                this.requestNextFrame = function () {
                     requestAnimationFrame.apply(window, arguments);
                 };
-                this.cancelNextFrame = function() {
+                this.cancelNextFrame = function () {
                     cancelAnimationFrame.apply(window, arguments);
                 };
             }
             else {
-                this.requestNextFrame = function(nextHandler) {
+                this.requestNextFrame = function (nextHandler) {
                     return setTimeout(nextHandler, self.nextFrameTime - self.time + 1);
-                }
-                this.cancelNextFrame = function(id) {
+                };
+                this.cancelNextFrame = function (id) {
                     clearTimeout(id);
-                }
+                };
             }
         }
         this.tick();
@@ -250,15 +262,15 @@ define(function(require) {
      * 获取当前现实时间
      * @return {number}
      */
-    Ticker.prototype.now = function() {
+    Ticker.prototype.now = function () {
         return Date.now ? Date.now() : new Date().getTime();
     };
 
     /**
      * 设置帧率
-     * @type {number} fps 帧率
+     * @param {number} fps 帧率
      */
-    Ticker.prototype.setFps = function(fps) {
+    Ticker.prototype.setFps = function (fps) {
         this.fps = fps;
         this.interval = 1000 / (this.fps || 60);
         this.nextFrameTime = this.time + this.interval;
@@ -269,7 +281,7 @@ define(function(require) {
      * 获取帧率
      * @return {number}
      */
-    Ticker.prototype.getFps = function() {
+    Ticker.prototype.getFps = function () {
         return this.fps;
     };
 
@@ -281,7 +293,7 @@ define(function(require) {
      * 2. 有些浏览器例如iOS，在切换不同TAB然后再次切回来时，偶尔会丢失requestAnimationFrame
      *    这里不停查看两次tick的时延来检查是否出现这种情况，如果出现立即调用wake
      */
-    Ticker.prototype.aliveCheck = function() {
+    Ticker.prototype.aliveCheck = function () {
         var self = this;
         // 有可能帧率极低，需要根据帧率调整检测间隔
         var timeout = Math.max(2000, this.interval * 3);
@@ -299,6 +311,14 @@ define(function(require) {
             self.aliveCheckTimer = setTimeout(check, timeout);
         }
         check(true);
+    };
+
+    /**
+     * 增加下一次 tick 时需要执行的函数
+     * @param {Function} fn 要执行的函数
+     */
+    Ticker.prototype.nextTick = function (fn) {
+        this.waiting.push(fn);
     };
 
     return Ticker;

@@ -1,29 +1,35 @@
 /***************************************************************************
- * 
+ *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * 
+ *
+ * @file:    src/TimeEvent.js
+ * @author:  songao(songao@baidu.com)
+ * @version: $Revision$
+ * @date:    $Date: 2014/12/15 10:55:43$
+ * @desc:    时间事件，是所有时间轴、动画片段的基类，任何跟时间相关的对象都可以抽象为时间事件
+ *
  **************************************************************************/
- 
- 
-/*
- * path:    src/TimeEvent.js
- * desc:    时间事件，是所有时间轴、动画片段的基类，任何跟时间相关的对象都可以抽象为时间事件
- * author:  songao(songao@baidu.com)
- * version: $Revision$
- * date:    $Date: 2014/12/15 10:55:43$
- */
 
-define(function(require) {
-    var global = require('./global');
+/* eslint-disable dot-notation */
+
+define(function (require) {
     var util = require('./util');
     var events = require('./events');
     var EventDispatcher = require('./EventDispatcher');
-    var TINY_NUMBER = global.TINY_NUMBER;
+    var global = require('./global');
 
     /**
      * 时间事件，是所有时间轴、动作的基类
      * @param {Object} options 选项
+     * @param {boolean} options.isInFrame 时间单位是否是帧
+     * @param {number} options.startPoint 动画时间起点
+     * @param {number} options.delay 初始延迟
+     * @param {number} options.duration 动画时长
+     * @param {number} options.scale 时间缩放比例
+     * @param {Timeline} options.timeline 所属时间轴
+     * @param {Function} options.ease 缓动函数
+     * @constructor
      */
     function TimeEvent(options) {
         EventDispatcher.call(this);
@@ -40,37 +46,37 @@ define(function(require) {
          * 时间事件发生的时间起点或者帧数起点
          * @type {number}
          */
-        this.startPoint = 0;
+        this.startPoint = options['startPoint'] || 0;
 
         /**
          * 时间事件开始之前的delay
          * @type {number}
          */
-        this.delay;
+        this._delay = options['delay'] || 0;
 
         /**
          * 持续时间或者持续帧数
          * @type {number}
          */
-        this._duration = Infinity;
+        this._duration = options['duration'] != null ? options['duration'] : Infinity;
 
         /**
          * 时间缩放比例
          * @param {number}
          */
-        this._scale = 1;
+        this._scale = options['scale'] || 1;
 
         /**
          * 绑定的时间轴
          * @type {Timeline}
          */
-        this.timeline;
+        this.timeline = options['timeline'];
 
         /**
          * 缓动函数
          * @type {Function}
          */
-        this._ease;
+        this._ease = options['ease'];
 
         /**
          * 是否处于暂停状态
@@ -97,7 +103,16 @@ define(function(require) {
         this.playhead = 0;
 
         /**
+         * 上一次已渲染过的时间点
+         * @type {number}
+         */
+        this.lastRealPlayhead;
+
+        /**
          * 上一次记录的当前时间或帧数是否可信
+         * 例如:
+         * 一个动作重来没有渲染过，且还没进入时间范围
+         * 或者动作结束之后进入非激活状态
          * @type {boolean}
          */
         this.isPlayheadDirty = true;
@@ -120,7 +135,7 @@ define(function(require) {
      * 获取开始时间点
      * @return {number}
      */
-    TimeEvent.prototype.getStartPoint = function() {
+    TimeEvent.prototype.getStartPoint = function () {
         return this.startPoint;
     };
 
@@ -128,15 +143,23 @@ define(function(require) {
      * 获取时长
      * @return {number}
      */
-    TimeEvent.prototype.getDuration = function() {
+    TimeEvent.prototype.getDuration = function () {
         return this._duration;
+    };
+
+    /**
+     * 获取延迟
+     * @return {number}
+     */
+    TimeEvent.prototype.getDelay = function () {
+        return this._delay;
     };
 
     /**
      * 获取时间缩放比例
      * @return {number}
      */
-    TimeEvent.prototype.getScale = function() {
+    TimeEvent.prototype.getScale = function () {
         return this._scale;
     };
 
@@ -144,7 +167,7 @@ define(function(require) {
      * 获取当前时间(相对于自身起点)
      * @return {number}
      */
-    TimeEvent.prototype.getTime = function() {
+    TimeEvent.prototype.getTime = function () {
         return this.playhead;
     };
 
@@ -153,7 +176,7 @@ define(function(require) {
      * @param {number} duration 时长
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.duration = function(duration) {
+    TimeEvent.prototype.duration = function (duration) {
         this._duration = duration;
         return this;
     };
@@ -163,7 +186,7 @@ define(function(require) {
      * @param {number} scale 缩放比例
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.scale = function(scale) {
+    TimeEvent.prototype.scale = function (scale) {
         this._scale = scale;
         // TODO; scale pauseTime ?
         return this;
@@ -173,23 +196,29 @@ define(function(require) {
      * 设置所属时间轴
      * @param {Timeline} timeline 所属时间轴
      */
-    TimeEvent.prototype.setTimeline = function(timeline) {
+    TimeEvent.prototype.setTimeline = function (timeline) {
         this.timeline = timeline;
     };
 
     /**
      * 设置起始时间点
      * @param {number} startPoint 起始时间点
+     * @param {boolean=} optNotSpreadUp 是否不需要往上传递
      */
-    TimeEvent.prototype.setStartPoint = function(startPoint) {
+    TimeEvent.prototype.setStartPoint = function (startPoint, optNotSpreadUp) {
         this.startPoint = startPoint;
+
+        // 起始点发生变化，需要调整在父时间轴链表上的位置
+        if (this.timeline && optNotSpreadUp !== true) {
+            this.timeline.rearrange(this);
+        }
     };
 
     /**
      * 是否已经绑定了时间轴
      * @return {boolean}
      */
-    TimeEvent.prototype.isAttached = function() {
+    TimeEvent.prototype.isAttached = function () {
         return !!this.timeline;
     };
 
@@ -197,7 +226,7 @@ define(function(require) {
      * 解绑时间轴
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.detach = function() {
+    TimeEvent.prototype.detach = function () {
         if (this.timeline) {
             this.timeline.remove(this);
         }
@@ -209,9 +238,9 @@ define(function(require) {
      * 绑定时间轴
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.attach = function() {
+    TimeEvent.prototype.attach = function () {
         if (this.timeline) {
-            this.timeline.add(this, this.startPoint - this.delay);
+            this.timeline.add(this);
         }
 
         return this;
@@ -224,8 +253,9 @@ define(function(require) {
      */
     TimeEvent.prototype.delay
         = TimeEvent.prototype.after
-        = function(timeOrFrame) {
-            this.delay = timeOrFrame;
+        = function (timeOrFrame) {
+            this.setStartPoint(this.getStartPoint() + timeOrFrame - this._delay);
+            this._delay = timeOrFrame;
 
             return this;
         };
@@ -235,7 +265,7 @@ define(function(require) {
      * @param {Function} ease 缓动函数
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.ease = function(ease) {
+    TimeEvent.prototype.ease = function (ease) {
         this._ease = ease;
 
         return this;
@@ -246,30 +276,28 @@ define(function(require) {
      * @param {number} timePercent 已播放时长百分比
      * @return {number}
      */
-    TimeEvent.prototype.getProgress = function(timePercent) {
+    TimeEvent.prototype.getProgress = function (timePercent) {
         if (this._ease) {
             return this._ease(timePercent);
         }
-        else {
-            return timePercent;
-        }
+        return timePercent;
     };
 
     /**
      * 渲染
-     * 1. opt_forceRender=true(例如seek(xxx)) 不触发开始或者结束事件，那么需要在下一次移动时触发
-     * 2. opt_forceRender=false 那么立即触发事件
+     * 1. optForceRender=true(例如seek(xxx)) 不触发开始或者结束事件，那么需要在下一次移动时触发
+     * 2. optForceRender=false 那么立即触发事件
      * @param {number} playhead 当前时间点
-     * @param {boolean=} opt_forceRender 是否强制渲染，为 true 则忽略一些限制
+     * @param {boolean=} optForceRender 是否强制渲染，为 true 则忽略一些限制
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.render = function(playhead, opt_forceRender) {
+    TimeEvent.prototype.render = function (playhead, optForceRender) {
         var lastPlayhead = this.playhead;
         this.playhead = playhead;
         var isPlayheadDirty = this.isPlayheadDirty;
         this.isPlayheadDirty = false;
 
-        if (!opt_forceRender && this.isPaused) {
+        if (!optForceRender && this.isPaused) {
             return this;
         }
 
@@ -278,14 +306,15 @@ define(function(require) {
 
         var duration = this.getDuration();
         // 不处于激活状态或者跟上一次相同，不需要渲染
-        if (!this.isActive || playhead === lastPlayhead) {
+        // if (!this.isActive && !this.isAlwaysActive || !optForceRender && playhead === lastPlayhead) {
+        if (!optForceRender && (!this.isActive && !this.isAlwaysActive || playhead === lastPlayhead)) {
             return this;
         }
 
         // 不在区域内并且是离开的方向就是"完成"
         var isFinished = false;
         var isNeedRender = true;
-        if (!opt_forceRender) {
+        if (!optForceRender) {
             if (playhead < 0) {
                 if (isPlayheadDirty) {
                     isNeedRender = false;
@@ -293,7 +322,8 @@ define(function(require) {
                 else {
                     if (playhead < lastPlayhead) {
                         isFinished = true;
-                    } else {
+                    }
+                    else {
                         isNeedRender = false;
                     }
                 }
@@ -305,7 +335,8 @@ define(function(require) {
                 else {
                     if (playhead > lastPlayhead) {
                         isFinished = true;
-                    } else {
+                    }
+                    else {
                         isNeedRender = false;
                     }
                 }
@@ -320,14 +351,21 @@ define(function(require) {
         }
 
         // 如果是逆向，playhead 反转
-        var realPlayhead = this.isReversed ? duration - playhead : playhead;
         if (this.isAlwaysActive || isNeedRender) {
-            this.internalRender(realPlayhead, opt_forceRender);
+            var realPlayhead = this.isReversed ? duration - playhead : playhead;
+            this.internalRender(realPlayhead, optForceRender);
+            this.lastRealPlayhead = realPlayhead;
         }
 
         if (isFinished) {
+            if (this.isActive) {
+                var self = this;
+                // 异步触发，防止事件处理函数里的逻辑影响到当前执行
+                global.ticker.nextTick(function () {
+                    self.trigger(events.AFTER_FINISH);
+                });
+            }
             this.deactivate();
-            this.trigger(events.AFTER_FINISH);
         }
 
         return this;
@@ -336,15 +374,16 @@ define(function(require) {
     /**
      * 内部渲染函数：真正干活的，继承类去实现
      * @param {number} realPlayhead 播放指针实际位置
-     * @param {boolean=} opt_forceRender 是否强制渲染
+     * @param {boolean=} optForceRender 是否强制渲染
      */
-    TimeEvent.prototype.internalRender = function(realPlayhead, opt_forceRender) {};
+    TimeEvent.prototype.internalRender = function (realPlayhead, optForceRender) {};
 
     /**
      * 激活时间事件
+     * @param {number} optPlayhead 以此时间点来设置激活状态
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.activate = function() {
+    TimeEvent.prototype.activate = function (optPlayhead) {
         this.isActive = true;
         return this;
     };
@@ -353,22 +392,23 @@ define(function(require) {
      * 停止时间事件
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.deactivate = function() {
+    TimeEvent.prototype.deactivate = function () {
         if (!this.isAlwaysActive) {
             this.isPlayheadDirty = true;
-            this.isActive = false;
         }
+        this.isActive = false;
+
         return this;
     };
 
     /**
      * 设置实际逆转状态
-     * @param {boolean=} opt_parentRealReversed 父时间轴是否逆转
+     * @param {boolean=} optParentRealReversed 父时间轴是否逆转
      */
-    TimeEvent.prototype.setRealReverse = function(opt_parentRealReversed) {
-        if (opt_parentRealReversed != null) {
+    TimeEvent.prototype.setRealReverse = function (optParentRealReversed) {
+        if (optParentRealReversed != null) {
             if (this.isReversed) {
-                this.isRealReversed = !opt_parentRealReversed;
+                this.isRealReversed = !optParentRealReversed;
             }
         }
         else {
@@ -378,28 +418,28 @@ define(function(require) {
 
     /**
      * 时光逆流
-     * @param {number=} opt_reversePoint 反向时间点，如果没有指定就用当前时间点
+     * @param {number=} optReversePoint 反向时间点，如果没有指定就用当前时间点
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.reverse = function(opt_reversePoint) {
+    TimeEvent.prototype.reverse = function (optReversePoint) {
         this.isReversed = !this.isReversed;
         this.setRealReverse();
         if (!this.timeline) {
             return this;
         }
         var duration = this.getDuration();
-        var reversePoint = opt_reversePoint != null
-            ? opt_reversePoint
+        var reversePoint = optReversePoint != null
+            ? optReversePoint
             : (this.isPaused ? this.pausePoint : this.playhead);
         // 限制 reversePoint 到 0 ~ duration 中
         var played = Math.min(Math.max(reversePoint, 0), duration);
 
         // 反转之后的已播放时长
         var playedNow = duration - played;
-        this.startPoint = this.timeline.getTime() - playedNow / this.getScale();
+        this.setStartPoint(this.timeline.getTime() - playedNow / this.getScale());
         // FIXME: 边界情况？reverse(0) 之类的
         this.playhead = playedNow;
-        this.rearrange();
+        this.activate();
 
         return this;
     };
@@ -409,17 +449,17 @@ define(function(require) {
      * @param {number} targetPoint 指定的时间点
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.seek = function(targetPoint) {
+    TimeEvent.prototype.seek = function (targetPoint) {
         var duration = this.getDuration();
         // 限制 targetPoint 到 0 ~ duration 中
         var played = Math.min(Math.max(targetPoint, 0), duration);
 
-        this.startPoint = this.timeline.getTime() - played / this.getScale();
+        this.setStartPoint(this.timeline.getTime() - played / this.getScale());
         if (this.isPaused) {
             this.pausePoint = played;
         }
-        this.rearrange();
 
+        this.activate(played);
         this.render(played, true);
 
         return this;
@@ -427,18 +467,18 @@ define(function(require) {
 
     /**
      * 按指定进度挪动指针
-     * @type {number} progress 进度
-     * @type {boolean} opt_reverseConsidered 是否考虑反转。
+     * @param {number} progress 进度
+     * @param {boolean} optReverseConsidered 是否考虑反转。
      *       提供的 progress 有两种可能：
-     *       1. progress 表示已播放的百分比，不管是否处于反转状态 (opt_reverseConsidered = false)
-     *       2. progress 表示实际指针位置 (opt_reverseConsidered = true)
+     *       1. progress 表示已播放的百分比，不管是否处于反转状态 (optReverseConsidered = false)
+     *       2. progress 表示实际指针位置 (optReverseConsidered = true)
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.seekProgress = function(progress, opt_reverseConsidered) {
+    TimeEvent.prototype.seekProgress = function (progress, optReverseConsidered) {
         var duration = this.getDuration();
-        var actualProgress = opt_reverseConsidered && this.isReversed
+        var actualProgress = optReverseConsidered && this.isReversed
             ? 1 - progress
-            : progress
+            : progress;
         this.seek(duration * actualProgress);
 
         return this;
@@ -446,21 +486,24 @@ define(function(require) {
 
     /**
      * 播放
-     * @param {number=} opt_target 指定的时间点
-     * @param {Object=} opt_options 选项
+     * @param {number=} optTarget 指定的时间点
+     * @param {Object=} optOptions 选项
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.play = function(opt_target, opt_options) {
+    TimeEvent.prototype.play = function (optTarget, optOptions) {
         if (this.isPaused) {
-            if (opt_target != null) {
-                this.seek(opt_target);
+            if (optTarget != null) {
+                this.seek(optTarget);
             }
             this.resume();
         }
         else {
             var duration = this.getDuration();
-            if (this.playhead < 0 || this.playhead >= duration) {
-                this.seek(opt_target || 0);
+            if (optTarget != null) {
+                this.seek(optTarget);
+            }
+            else if (this.playhead < 0 || this.playhead >= duration) {
+                this.seek(0);
             }
         }
 
@@ -471,7 +514,7 @@ define(function(require) {
      * 向前播放
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.playForward = function() {
+    TimeEvent.prototype.playForward = function () {
         if (this.isRealReversed) {
             this.reverse().play(0);
         }
@@ -485,7 +528,7 @@ define(function(require) {
      * 向后播放
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.playBackward = function() {
+    TimeEvent.prototype.playBackward = function () {
         if (this.isRealReversed) {
             this.play(0);
         }
@@ -499,7 +542,7 @@ define(function(require) {
      * 停止
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.stop = function() {
+    TimeEvent.prototype.stop = function () {
         this.seek(0);
         this.pause();
 
@@ -508,11 +551,12 @@ define(function(require) {
 
     /**
      * 暂停
+     * @param {number=} optPlayhead 指定位置
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.pause = function(opt_playhead) {
-        if (opt_playhead != null) {
-            this.seek(opt_playhead);
+    TimeEvent.prototype.pause = function (optPlayhead) {
+        if (optPlayhead != null) {
+            this.seek(optPlayhead);
         }
         if (!this.isPaused) {
             this.pausePoint = this.playhead;
@@ -526,7 +570,7 @@ define(function(require) {
      * 继续
      * @return {TimeEvent}
      */
-    TimeEvent.prototype.resume = function() {
+    TimeEvent.prototype.resume = function () {
         if (!this.isPaused) {
             return this;
         }
@@ -534,7 +578,7 @@ define(function(require) {
         var duration = this.getDuration();
         // 限制到 0 ~ duration 中
         var played = Math.min(Math.max(this.pausePoint, 0), duration);
-        this.startPoint = this.timeline.getTime() - played / this.getScale();
+        this.setStartPoint(this.timeline.getTime() - played / this.getScale());
         this.isPaused = false;
         this.pausePoint = null;
 

@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="utf-8" />
     <title>Dance - A JavaScript animation framework.</title>
-    <script type="text/javascript" src="http://s1.bdstatic.com/r/www/cache/ecom/esl/1-8-2/esl.js"></script>
-    <script type="text/javascript" src="http://cdn.staticfile.org/jquery/1.11.1/jquery.min.js"></script>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <meta name="viewport" content="width=device-width, height=device-height, inital-scale=1.0, maximum-scale=1.0, user-scalable=no;">
     <style type="text/css">
     body {padding:0;margin:0;}
     #ticker {
@@ -82,7 +82,9 @@
     <a id="reverse" href="#">反转</a>
     <a id="stop" href="#">停止</a>
 </div>
-<script type="text/javascript">
+<script src="http://s1.bdstatic.com/r/www/cache/ecom/esl/1-8-2/esl.js"></script>
+<script src="http://cdn.staticfile.org/jquery/1.11.1/jquery.min.js"></script>
+<script>
 require.config({
     baseUrl: '../src',
     packages: [
@@ -123,7 +125,7 @@ require(['Dance'], function(Dance) {
     //         left: '100px'
     //     });
     var dance = Dance.create()
-        .ease(Dance.wave('ease-in'))
+        // .ease(Dance.wave('ease-in'))
         .add(Dance.move(ele1).to({ top: '100px' }).duration(1000))
         .at(0)
         .add(Dance.move(ele1).to({ left: '100px' }).duration(1000).ease(Dance.wave('easeInOutCubic')))
@@ -139,7 +141,6 @@ require(['Dance'], function(Dance) {
 
     var totalBarWidth = $('#bar').width() - 20;
     dance.addListener('progress', function(progress) {
-        console.log(progress);
         var buttonLeft = Math.min(Math.max(0, totalBarWidth * progress), totalBarWidth);
         $('#bar-button').css('left', buttonLeft);
     });

@@ -434,7 +434,9 @@ define('util', ['require'], function (require) {
         var originalPrototype = type.prototype;
         type.prototype = proto;
         for (var key in originalPrototype) {
-            proto[key] = originalPrototype[key];
+            if (originalPrototype.hasOwnProperty(key)) {
+                proto[key] = originalPrototype[key];
+            }
         }
         if (dontEnumBug) {
             if (originalPrototype.hasOwnProperty('toString')) {
@@ -450,7 +452,7 @@ define('util', ['require'], function (require) {
     util.breaker = {};
     util.each = function (array, iterator, context) {
         if (array == null) {
-            return array;
+            return;
         }
         var actualIterator = context == null ? iterator : util.bind(iterator, context);
         for (var i = 0, len = array.length; i < len; i++) {
@@ -499,6 +501,8 @@ define('util', ['require'], function (require) {
             if (key === 'opacity' && util.ie && util.ie <= 8) {
                 var filter = element.style.filter;
                 value = filter && filter.indexOf('opacity=') >= 0 ? parseFloat(filter.match(/opacity=([^)]*)/)[1]) / 100 + '' : '1';
+            } else {
+                value = 0;
             }
         }
         return value;
@@ -510,7 +514,7 @@ define('util', ['require'], function (require) {
         }
         var style = element.style;
         if (key === 'opacity' && util.ie && util.ie <= 8) {
-            style.filter = (style.filter || '').replace(/alpha\([^\)]*\)/gi, '') + (value == 1 ? '' : 'alpha(opacity=' + value * 100 + ')');
+            style.filter = (style.filter || '').replace(/alpha\([^\)]*\)/gi, '') + (value === 1 ? '' : 'alpha(opacity=' + value * 100 + ')');
             style.zoom = 1;
         } else {
             style[key] = value;
@@ -519,7 +523,9 @@ define('util', ['require'], function (require) {
     };
     util.setStyles = function (element, styles) {
         for (var key in styles) {
-            util.setStyle(element, key, styles[key]);
+            if (styles.hasOwnProperty(key)) {
+                util.setStyle(element, key, styles[key]);
+            }
         }
         return element;
     };
@@ -542,7 +548,6 @@ define('EventDispatcher', ['require'], function (require) {
     function EventDispatcher() {
         this._listeners = {};
     }
-    ;
     EventDispatcher.prototype.addListener = function (eventType, listener) {
         if (!this._listeners[eventType]) {
             this._listeners[eventType] = [];
@@ -561,7 +566,7 @@ define('EventDispatcher', ['require'], function (require) {
             }
         }
     };
-    EventDispatcher.prototype.trigger = function (eventType, var_args) {
+    EventDispatcher.prototype.trigger = function (eventType, varArgs) {
         if (!this._listeners[eventType]) {
             return true;
         }
@@ -584,27 +589,27 @@ define('EventDispatcher', ['require'], function (require) {
     EventDispatcher.prototype.registerListener = function (eventType, listener) {
         var registry = EventDispatcher._registry;
         registry.push({
-            'eventType': eventType,
-            'subscriber': this,
-            'listener': listener
+            eventType: eventType,
+            subscriber: this,
+            listener: listener
         });
     };
     EventDispatcher.prototype.unregisterListener = function (eventType, listener) {
         var registry = EventDispatcher._registry;
         for (var i = registry.length - 1; i >= 0; i--) {
             var item = registry[i];
-            if (item['subscriber'] === this && (!eventType || eventType && item['eventType'] === eventType) && (!listener || listener && item['listener'] === listener)) {
+            if (item.subscriber === this && (!eventType || eventType && item.eventType === eventType) && (!listener || listener && item.listener === listener)) {
                 registry.splice(i, 1);
             }
         }
     };
-    EventDispatcher.prototype.publish = function (eventType, var_args) {
+    EventDispatcher.prototype.publish = function (eventType, varArgs) {
         var registry = EventDispatcher._registry;
         var args = Array.prototype.slice.call(arguments, 1);
         var result = true;
         for (var i = 0; i < registry.length; i++) {
             var item = registry[i];
-            if (item['eventType'] === eventType && false === item['listener'].apply(item['subscriber'], args)) {
+            if (item.eventType === eventType && false === item.listener.apply(item.subscriber, args)) {
                 result = false;
             }
         }
@@ -615,30 +620,30 @@ define('EventDispatcher', ['require'], function (require) {
 
 define('TimeEvent', [
     'require',
-    './global',
     './util',
     './events',
-    './EventDispatcher'
+    './EventDispatcher',
+    './global'
 ], function (require) {
-    var global = require('./global');
     var util = require('./util');
     var events = require('./events');
     var EventDispatcher = require('./EventDispatcher');
-    var TINY_NUMBER = global.TINY_NUMBER;
+    var global = require('./global');
     function TimeEvent(options) {
         EventDispatcher.call(this);
         options = options || {};
         this.isInFrame = options['isInFrame'] || false;
-        this.startPoint = 0;
-        this.delay;
-        this._duration = Infinity;
-        this._scale = 1;
-        this.timeline;
-        this._ease;
+        this.startPoint = options['startPoint'] || 0;
+        this._delay = options['delay'] || 0;
+        this._duration = options['duration'] != null ? options['duration'] : Infinity;
+        this._scale = options['scale'] || 1;
+        this.timeline = options['timeline'];
+        this._ease = options['ease'];
         this.isPaused = false;
         this.isActive = true;
         this.isAlwaysActive = false;
         this.playhead = 0;
+        this.lastRealPlayhead;
         this.isPlayheadDirty = true;
         this.isReversed = false;
         this.isRealReversed = false;
@@ -649,6 +654,9 @@ define('TimeEvent', [
     };
     TimeEvent.prototype.getDuration = function () {
         return this._duration;
+    };
+    TimeEvent.prototype.getDelay = function () {
+        return this._delay;
     };
     TimeEvent.prototype.getScale = function () {
         return this._scale;
@@ -667,8 +675,11 @@ define('TimeEvent', [
     TimeEvent.prototype.setTimeline = function (timeline) {
         this.timeline = timeline;
     };
-    TimeEvent.prototype.setStartPoint = function (startPoint) {
+    TimeEvent.prototype.setStartPoint = function (startPoint, optNotSpreadUp) {
         this.startPoint = startPoint;
+        if (this.timeline && optNotSpreadUp !== true) {
+            this.timeline.rearrange(this);
+        }
     };
     TimeEvent.prototype.isAttached = function () {
         return !!this.timeline;
@@ -681,12 +692,13 @@ define('TimeEvent', [
     };
     TimeEvent.prototype.attach = function () {
         if (this.timeline) {
-            this.timeline.add(this, this.startPoint - this.delay);
+            this.timeline.add(this);
         }
         return this;
     };
     TimeEvent.prototype.delay = TimeEvent.prototype.after = function (timeOrFrame) {
-        this.delay = timeOrFrame;
+        this.setStartPoint(this.getStartPoint() + timeOrFrame - this._delay);
+        this._delay = timeOrFrame;
         return this;
     };
     TimeEvent.prototype.ease = function (ease) {
@@ -696,25 +708,24 @@ define('TimeEvent', [
     TimeEvent.prototype.getProgress = function (timePercent) {
         if (this._ease) {
             return this._ease(timePercent);
-        } else {
-            return timePercent;
         }
+        return timePercent;
     };
-    TimeEvent.prototype.render = function (playhead, opt_forceRender) {
+    TimeEvent.prototype.render = function (playhead, optForceRender) {
         var lastPlayhead = this.playhead;
         this.playhead = playhead;
         var isPlayheadDirty = this.isPlayheadDirty;
         this.isPlayheadDirty = false;
-        if (!opt_forceRender && this.isPaused) {
+        if (!optForceRender && this.isPaused) {
             return this;
         }
         var duration = this.getDuration();
-        if (!this.isActive || playhead === lastPlayhead) {
+        if (!optForceRender && (!this.isActive && !this.isAlwaysActive || playhead === lastPlayhead)) {
             return this;
         }
         var isFinished = false;
         var isNeedRender = true;
-        if (!opt_forceRender) {
+        if (!optForceRender) {
             if (playhead < 0) {
                 if (isPlayheadDirty) {
                     isNeedRender = false;
@@ -741,80 +752,88 @@ define('TimeEvent', [
                 }
             }
         }
-        var realPlayhead = this.isReversed ? duration - playhead : playhead;
         if (this.isAlwaysActive || isNeedRender) {
-            this.internalRender(realPlayhead, opt_forceRender);
+            var realPlayhead = this.isReversed ? duration - playhead : playhead;
+            this.internalRender(realPlayhead, optForceRender);
+            this.lastRealPlayhead = realPlayhead;
         }
         if (isFinished) {
+            if (this.isActive) {
+                var self = this;
+                global.ticker.nextTick(function () {
+                    self.trigger(events.AFTER_FINISH);
+                });
+            }
             this.deactivate();
-            this.trigger(events.AFTER_FINISH);
         }
         return this;
     };
-    TimeEvent.prototype.internalRender = function (realPlayhead, opt_forceRender) {
+    TimeEvent.prototype.internalRender = function (realPlayhead, optForceRender) {
     };
-    TimeEvent.prototype.activate = function () {
+    TimeEvent.prototype.activate = function (optPlayhead) {
         this.isActive = true;
         return this;
     };
     TimeEvent.prototype.deactivate = function () {
         if (!this.isAlwaysActive) {
             this.isPlayheadDirty = true;
-            this.isActive = false;
         }
+        this.isActive = false;
         return this;
     };
-    TimeEvent.prototype.setRealReverse = function (opt_parentRealReversed) {
-        if (opt_parentRealReversed != null) {
+    TimeEvent.prototype.setRealReverse = function (optParentRealReversed) {
+        if (optParentRealReversed != null) {
             if (this.isReversed) {
-                this.isRealReversed = !opt_parentRealReversed;
+                this.isRealReversed = !optParentRealReversed;
             }
         } else {
             this.isRealReversed = !this.isRealReversed;
         }
     };
-    TimeEvent.prototype.reverse = function (opt_reversePoint) {
+    TimeEvent.prototype.reverse = function (optReversePoint) {
         this.isReversed = !this.isReversed;
         this.setRealReverse();
         if (!this.timeline) {
             return this;
         }
         var duration = this.getDuration();
-        var reversePoint = opt_reversePoint != null ? opt_reversePoint : this.isPaused ? this.pausePoint : this.playhead;
+        var reversePoint = optReversePoint != null ? optReversePoint : this.isPaused ? this.pausePoint : this.playhead;
         var played = Math.min(Math.max(reversePoint, 0), duration);
         var playedNow = duration - played;
-        this.startPoint = this.timeline.getTime() - playedNow / this.getScale();
+        this.setStartPoint(this.timeline.getTime() - playedNow / this.getScale());
         this.playhead = playedNow;
-        this.rearrange();
+        this.activate();
         return this;
     };
     TimeEvent.prototype.seek = function (targetPoint) {
         var duration = this.getDuration();
         var played = Math.min(Math.max(targetPoint, 0), duration);
-        this.startPoint = this.timeline.getTime() - played / this.getScale();
+        this.setStartPoint(this.timeline.getTime() - played / this.getScale());
         if (this.isPaused) {
             this.pausePoint = played;
         }
-        this.rearrange();
+        this.activate(played);
         this.render(played, true);
         return this;
     };
-    TimeEvent.prototype.seekProgress = function (progress, opt_reverseConsidered) {
+    TimeEvent.prototype.seekProgress = function (progress, optReverseConsidered) {
         var duration = this.getDuration();
-        var actualProgress = opt_reverseConsidered && this.isReversed ? 1 - progress : progress;
+        var actualProgress = optReverseConsidered && this.isReversed ? 1 - progress : progress;
         this.seek(duration * actualProgress);
         return this;
     };
-    TimeEvent.prototype.play = function (opt_target, opt_options) {
+    TimeEvent.prototype.play = function (optTarget, optOptions) {
         if (this.isPaused) {
-            if (opt_target != null) {
-                this.seek(opt_target);
+            if (optTarget != null) {
+                this.seek(optTarget);
             }
             this.resume();
         } else {
             var duration = this.getDuration();
-            if (this.playhead < 0 || this.playhead >= duration) {
-                this.seek(opt_target || 0);
+            if (optTarget != null) {
+                this.seek(optTarget);
+            } else if (this.playhead < 0 || this.playhead >= duration) {
+                this.seek(0);
             }
         }
         return this;
@@ -840,9 +859,9 @@ define('TimeEvent', [
         this.pause();
         return this;
     };
-    TimeEvent.prototype.pause = function (opt_playhead) {
-        if (opt_playhead != null) {
-            this.seek(opt_playhead);
+    TimeEvent.prototype.pause = function (optPlayhead) {
+        if (optPlayhead != null) {
+            this.seek(optPlayhead);
         }
         if (!this.isPaused) {
             this.pausePoint = this.playhead;
@@ -856,7 +875,7 @@ define('TimeEvent', [
         }
         var duration = this.getDuration();
         var played = Math.min(Math.max(this.pausePoint, 0), duration);
-        this.startPoint = this.timeline.getTime() - played / this.getScale();
+        this.setStartPoint(this.timeline.getTime() - played / this.getScale());
         this.isPaused = false;
         this.pausePoint = null;
         this.seek(played);
@@ -886,9 +905,9 @@ define('Ticker', [
         cancelAnimationFrame = window[vendors[i] + 'CancelAnimationFrame'] || window[vendors[i] + 'CancelRequestAnimationFrame'];
     }
     var isRAFSupported = requestAnimationFrame && cancelAnimationFrame;
-    function Ticker(fps, opt_options) {
+    function Ticker(fps, optOptions) {
         EventDispatcher.call(this);
-        var options = opt_options || {};
+        var options = optOptions || {};
         this.startTime = this.now();
         this.time = 0;
         this.frame = 0;
@@ -905,6 +924,7 @@ define('Ticker', [
         this.aliveCheckTimer;
         this.isTicking = false;
         this.boundTick = util.bind(this.tick, this);
+        this.waiting = [];
         this.wake();
     }
     util.inherits(Ticker, EventDispatcher);
@@ -923,6 +943,12 @@ define('Ticker', [
                 this.nextFrameTimer = this.requestNextFrame(this.boundTick);
             }
             this.trigger(events.TICK, this.time, this.frame);
+            if (this.waiting.length) {
+                for (var i = this.waiting.length - 1; i >= 0; i--) {
+                    this.waiting[i]();
+                    this.waiting.splice(i, 1);
+                }
+            }
         }
         this.lastTickTime = now;
     };
@@ -989,6 +1015,9 @@ define('Ticker', [
         }
         check(true);
     };
+    Ticker.prototype.nextTick = function (fn) {
+        this.waiting.push(fn);
+    };
     return Ticker;
 });
 
@@ -1014,7 +1043,7 @@ define('Timeline', [
         this.isAlwaysActive = true;
     }
     util.inherits(Timeline, TimeEvent);
-    Timeline.prototype.add = function (timeEvent) {
+    Timeline.prototype.add = function (timeEvent, optInsertPoint) {
         if (!timeEvent instanceof TimeEvent) {
             throw 'Only TimeEvent could be added to Timeline!';
         }
@@ -1025,11 +1054,11 @@ define('Timeline', [
             timeEvent.detach();
         }
         timeEvent.setTimeline(this);
-        timeEvent.setStartPoint(this.playhead);
+        timeEvent.setStartPoint((optInsertPoint != null ? optInsertPoint : this.playhead) - timeEvent.getDelay(), true);
         timeEvent.setRealReverse(this.isRealReversed);
         this._lastTimeEvent = timeEvent;
         this.enqueue(timeEvent);
-        this.rearrange();
+        this.recalcDuration();
         return this;
     };
     Timeline.prototype.traverse = function (callback) {
@@ -1056,38 +1085,40 @@ define('Timeline', [
             }
         }
     };
-    Timeline.prototype.outInTraverse = function (point, callback) {
-        var isBreaked = false;
+    Timeline.prototype.seekForTraverse = function (point, callback) {
         var ret;
         var timeEvent;
-        if (this.listHead) {
-            timeEvent = this.listHead;
-            while (timeEvent) {
-                if (point < timeEvent.getStartPoint() || !this.isRealReversed && point === timeEvent.getStartPoint()) {
-                    break;
+        var startPoint;
+        var lastPoint = this.lastRealPlayhead;
+        if (point > lastPoint) {
+            if (this.listHead) {
+                timeEvent = this.listHead;
+                while (timeEvent) {
+                    startPoint = timeEvent.getStartPoint();
+                    if (point < startPoint) {
+                        break;
+                    }
+                    ret = callback(timeEvent);
+                    if (ret === util.breaker) {
+                        break;
+                    }
+                    timeEvent = timeEvent.next;
                 }
-                ret = callback(timeEvent);
-                if (ret === util.breaker) {
-                    isBreaked = true;
-                    break;
-                }
-                timeEvent = timeEvent.next;
             }
-        }
-        if (isBreaked) {
-            return this;
-        }
-        if (this.listTail) {
-            timeEvent = this.listTail;
-            while (timeEvent) {
-                if (point > timeEvent.getStartPoint() || this.isRealReversed && point === timeEvent.getStartPoint()) {
-                    break;
+        } else {
+            if (this.listTail) {
+                timeEvent = this.listTail;
+                while (timeEvent) {
+                    startPoint = timeEvent.getStartPoint();
+                    if (point > startPoint + timeEvent.getDuration() / timeEvent.getScale()) {
+                        break;
+                    }
+                    ret = callback(timeEvent);
+                    if (ret === util.breaker) {
+                        break;
+                    }
+                    timeEvent = timeEvent.prev;
                 }
-                ret = callback(timeEvent);
-                if (ret === util.breaker) {
-                    break;
-                }
-                timeEvent = timeEvent.prev;
             }
         }
         return this;
@@ -1146,21 +1177,21 @@ define('Timeline', [
     Timeline.prototype.at = function (timeOrFrame) {
         if (this._lastTimeEvent) {
             this._lastTimeEvent.setStartPoint(timeOrFrame);
-            this.rearrange();
+            this.rearrange(this._lastTimeEvent);
         }
         return this;
     };
     Timeline.prototype.remove = function (target) {
         this.dequeue(target);
-        this.rearrange();
+        this.recalcDuration();
         return this;
     };
-    Timeline.prototype.scale = function () {
+    Timeline.prototype.scale = function (scale) {
         TimeEvent.prototype.scale.apply(this, arguments);
-        this.rearrange();
+        this.recalcDuration();
         return this;
     };
-    Timeline.prototype.rearrange = function () {
+    Timeline.prototype.recalcDuration = function () {
         var maxRelativeEndPoint = -Infinity;
         this.traverse(function (timeEvent) {
             var relativeEndPoint = timeEvent.getStartPoint() + timeEvent.getDuration() / timeEvent.getScale();
@@ -1168,16 +1199,25 @@ define('Timeline', [
                 maxRelativeEndPoint = relativeEndPoint;
             }
         });
+        var lastDuration = this._duration;
         this._duration = Math.max(0, maxRelativeEndPoint);
-        if (this.timeline) {
-            this.timeline.rearrange();
+        if (lastDuration !== this._duration) {
+            if (this.timeline) {
+                this.timeline.recalcDuration();
+            }
+            if (this.playhead >= 0 && this.playhead <= this._duration) {
+                this.activate();
+            }
         }
-        this.activate();
         return this;
     };
-    Timeline.prototype.internalRender = function (realPlayhead, opt_forceRender) {
-        var that = this;
-        var traverse = opt_forceRender ? util.bind(this.outInTraverse, this, realPlayhead) : this.isRealReversed ? this.reverseTraverse : this.traverse;
+    Timeline.prototype.rearrange = function (timeEvent) {
+        this.remove(timeEvent).add(timeEvent, timeEvent.getStartPoint());
+        this.recalcDuration();
+        return this;
+    };
+    Timeline.prototype.internalRender = function (realPlayhead, optForceRender) {
+        var traverse = optForceRender && this.lastRealPlayhead ? util.bind(this.seekForTraverse, this, realPlayhead) : this.isRealReversed ? this.reverseTraverse : this.traverse;
         var duration = this.getDuration();
         var progress = Math.max(Math.min(realPlayhead, duration), 0) / duration;
         if (this._ease && realPlayhead >= 0 && realPlayhead <= duration) {
@@ -1185,11 +1225,11 @@ define('Timeline', [
             realPlayhead = realPlayhead * progress;
         }
         traverse.call(this, function (timeEvent) {
-            if (!timeEvent.isActive) {
+            if (!timeEvent.isActive && !timeEvent.isAlwaysActive) {
                 return;
             }
             var scaledElapsed = (realPlayhead - timeEvent.getStartPoint()) * timeEvent.getScale();
-            timeEvent.render(scaledElapsed, opt_forceRender);
+            timeEvent.render(scaledElapsed, optForceRender);
         });
         this.trigger(events.PROGRESS, progress, this.playhead);
     };
@@ -1210,14 +1250,33 @@ define('Timeline', [
         });
         return this;
     };
-    Timeline.prototype.activate = function () {
+    Timeline.prototype.activate = function (optPlayhead) {
         TimeEvent.prototype.activate.apply(this, arguments);
+        var isRealReversed = this.isRealReversed;
+        var duration = this.getDuration();
+        var playhead = optPlayhead != null ? optPlayhead : this.playhead;
+        var curRealPlayhead = this.isReversed ? duration - playhead : playhead;
         this.traverse(function (timeEvent) {
-            timeEvent.activate();
+            if (isRealReversed && curRealPlayhead >= timeEvent.getStartPoint() || !isRealReversed && curRealPlayhead < timeEvent.getStartPoint() + timeEvent.getDuration() / timeEvent.getScale()) {
+                timeEvent.activate();
+            }
         });
         return this;
     };
-    Timeline.prototype.setPlaybackRate = Timeline.prototype.speed = function () {
+    Timeline.prototype.setPlaybackRate = Timeline.prototype.speed = function (scale) {
+        this.scale(scale);
+        return this;
+    };
+    Timeline.prototype.dispose = function () {
+        if (this.listHead) {
+            var timeEvent = this.listHead;
+            var toRemove = null;
+            while (timeEvent) {
+                toRemove = timeEvent;
+                timeEvent = timeEvent.next;
+                this.remove(toRemove);
+            }
+        }
     };
     global.ticker = new Ticker();
     global.rootTimeline = new Timeline();
@@ -1261,13 +1320,12 @@ define('parser/CssDeclarationParser', [
                     value: value,
                     unit: CssDeclarationParser._defaultUnit[property] || ''
                 };
-            } else {
-                value = value + '';
-                return {
-                    value: parseFloat(value),
-                    unit: value.replace(/[\d.]+/, '')
-                };
             }
+            value = value + '';
+            return {
+                value: parseFloat(value),
+                unit: value.replace(/-?[\d.]+/, '')
+            };
         }
     };
     CssDeclarationParser._edgeParse = function (value, portions) {
@@ -1293,13 +1351,17 @@ define('parser/CssDeclarationParser', [
         var processorMap = CssDeclarationParser._processorMap;
         var parsed = {};
         for (var property in declarations) {
-            var processor = processorMap[property] || CssDeclarationParser._defaultProcessor;
-            var result = processor.parse(declarations[property], property);
-            if (result.value != null && result.unit != null) {
-                parsed[property] = result;
-            } else {
-                for (var key in result) {
-                    parsed[key] = result[key];
+            if (declarations.hasOwnProperty(property)) {
+                var processor = processorMap[property] || CssDeclarationParser._defaultProcessor;
+                var result = processor.parse(declarations[property], property);
+                if (result.value != null && result.unit != null) {
+                    parsed[property] = result;
+                } else {
+                    for (var key in result) {
+                        if (result.hasOwnProperty(key)) {
+                            parsed[key] = result[key];
+                        }
+                    }
                 }
             }
         }
@@ -1416,18 +1478,22 @@ define('Move', [
     Move.prototype.to = function (dest) {
         var declarationSet = CssDeclarationParser.parse(dest);
         for (var key in declarationSet) {
-            var bt = this.betweens[key] || new DeclarationBetween(key, this.element);
-            bt.setEnd(declarationSet[key]);
-            this.betweens[key] = bt;
+            if (declarationSet.hasOwnProperty(key)) {
+                var bt = this.betweens[key] || new DeclarationBetween(key, this.element);
+                bt.setEnd(declarationSet[key]);
+                this.betweens[key] = bt;
+            }
         }
         return this;
     };
     Move.prototype.from = function (src) {
         var declarationSet = CssDeclarationParser.parse(src);
         for (var key in declarationSet) {
-            var bt = this.betweens[key] || new DeclarationBetween(key, this.element);
-            bt.setStart(declarationSet[key]);
-            this.betweens[key] = bt;
+            if (declarationSet.hasOwnProperty(key)) {
+                var bt = this.betweens[key] || new DeclarationBetween(key, this.element);
+                bt.setStart(declarationSet[key]);
+                this.betweens[key] = bt;
+            }
         }
         return this;
     };
@@ -1435,7 +1501,7 @@ define('Move', [
         this.from(src).to(dest);
         return this;
     };
-    Move.prototype.internalRender = function (realPlayhead, opt_forceRender) {
+    Move.prototype.internalRender = function (realPlayhead, optForceRender) {
         var percent;
         var duration = this.getDuration();
         if (realPlayhead >= duration) {
@@ -1448,7 +1514,9 @@ define('Move', [
         this.trigger(events.BEFORE_UPDATE, percent);
         var styles = {};
         for (var key in this.betweens) {
-            styles[key] = this.betweens[key].getValue(percent);
+            if (this.betweens.hasOwnProperty(key)) {
+                styles[key] = this.betweens[key].getValue(percent);
+            }
         }
         util.setStyles(this.element, styles);
         this.trigger(events.AFTER_UPDATE, percent);
@@ -1829,24 +1897,24 @@ define('Dance', [
     'require',
     './global',
     './util',
-    './events',
-    './TimeEvent',
     './Timeline',
     './Move',
     'wave'
 ], function (require) {
     var global = require('./global');
     var util = require('./util');
-    var events = require('./events');
-    var TimeEvent = require('./TimeEvent');
     var Timeline = require('./Timeline');
     var Move = require('./Move');
     var wave = require('wave');
-    function Dance() {
+    function Dance(options) {
         Timeline.apply(this, arguments);
         this.render = Dance.prototype.render;
     }
     util.inherits(Dance, Timeline);
+    Dance.dispose = function () {
+        global.rootFrameTimeline.dispose();
+        global.rootTimeline.dispose();
+    };
     Dance.defaults = function (key, value) {
         global.defaults[key] = value;
     };
@@ -1873,7 +1941,10 @@ define('Dance', [
 });
 var Dance = require('Dance');
 var Ticker = require('Ticker');
+var global = require('global');
 Dance.Ticker = Ticker;
+Dance.ticker = global.ticker;
+
 var wave = require('wave');
 Dance.wave = wave;
 

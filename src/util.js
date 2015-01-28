@@ -1,22 +1,25 @@
 /***************************************************************************
- * 
+ *
  * Copyright (c) 2014 Baidu.com, Inc. All Rights Reserved
  * $Id$
- * 
+ *
+ * @file:    src/util.js
+ * @author:  songao(songao@baidu.com)
+ * @version: $Revision$
+ * @date:    $Date: 2014/12/11 13:03:24$
+ * @desc:    工具集
+ *
  **************************************************************************/
- 
- 
-/*
- * path:    src/util.js
- * desc:    
- * author:  songao(songao@baidu.com)
- * version: $Revision$
- * date:    $Date: 2014/12/11 13:03:24$
- */
 
-define(function(require) {
+/* eslint-disable dot-notation */
+
+define(function (require) {
     var util = {};
 
+    /**
+     * IE 版本号
+     * @type {?number}
+     */
     util.ie = /msie (\d+\.\d)/i.test(navigator.userAgent)
         ? document.documentMode || +RegExp['$1']
         : (/Trident\/\d+\.\d.*rv:(\d+\.\d)/.test(navigator.userAgent)
@@ -46,7 +49,7 @@ define(function(require) {
             };
         };
 
-    var dontEnumBug = !(({ toString: 1 }).propertyIsEnumerable('toString'));
+    var dontEnumBug = !(({toString: 1}).propertyIsEnumerable('toString'));
 
     /**
      * 设置继承关系
@@ -64,7 +67,9 @@ define(function(require) {
         type.prototype = proto;
 
         for (var key in originalPrototype) {
-            proto[key] = originalPrototype[key];
+            if (originalPrototype.hasOwnProperty(key)) {
+                proto[key] = originalPrototype[key];
+            }
         }
         if (dontEnumBug) {
             if (originalPrototype.hasOwnProperty('toString')) {
@@ -79,10 +84,21 @@ define(function(require) {
         return type;
     };
 
+    /**
+     * 遍历回调里使用的 breaker 对象，抛出之后可用于判定是否应该中断遍历
+     * @type {Object}
+     */
     util.breaker = {};
-    util.each = function(array, iterator, context) {
+
+    /**
+     * 遍历数组
+     * @param {Array.<*>} array 数组
+     * @param {Function} iterator 遍历回调
+     * @param {*} context 回调需要的作用域
+     */
+    util.each = function (array, iterator, context) {
         if (array == null) {
-            return array;
+            return;
         }
         var actualIterator = context == null
             ? iterator
@@ -94,27 +110,57 @@ define(function(require) {
         }
     };
 
-    util.isPlainObject = function(target) {
+    /**
+     * 检查是否是简单对象
+     * @param {*} target 目标
+     * @return {boolean}
+     */
+    util.isPlainObject = function (target) {
         return Object.prototype.toString.call(target) === '[object Object]';
     };
 
-    util.isArray = function(target) {
+    /**
+     * 检查是否是数组
+     * @param {*} target 目标
+     * @return {boolean}
+     */
+    util.isArray = function (target) {
         return Object.prototype.toString.call(target) === '[object Array]';
     };
 
-    util.isString = function(target) {
+    /**
+     * 检查是否是字符串
+     * @param {*} target 目标
+     * @return {boolean}
+     */
+    util.isString = function (target) {
         return Object.prototype.toString.call(target) === '[object String]';
     };
 
-    util.isFunction = function(target) {
+    /**
+     * 检查是否是函数
+     * @param {*} target 目标
+     * @return {boolean}
+     */
+    util.isFunction = function (target) {
         return Object.prototype.toString.call(target) === '[object Function]';
     };
 
-    util.isNumber = function(target) {
+    /**
+     * 检查是否是数字
+     * @param {*} target 目标
+     * @return {boolean}
+     */
+    util.isNumber = function (target) {
         return Object.prototype.toString.call(target) === '[object Number]';
     };
 
-    util.toCamelCase = function(source) {
+    /**
+     * 转换成驼峰形势
+     * @param {string} source 目标
+     * @return {string}
+     */
+    util.toCamelCase = function (source) {
         if (source.indexOf('-') < 0 && source.indexOf('_') < 0) {
             return source;
         }
@@ -123,7 +169,13 @@ define(function(require) {
         });
     };
 
-    util.getComputedStyle = function(element, key) {
+    /**
+     * 获取元素的 computedStyle
+     * @param {HTMLElement} element 目标元素
+     * @param {string} key 目标样式key
+     * @return {string|number}
+     */
+    util.getComputedStyle = function (element, key) {
         var doc = element.nodeType === 9 ? element : element.ownerDocument;
 
         if (doc.defaultView && doc.defaultView.getComputedStyle) {
@@ -135,7 +187,13 @@ define(function(require) {
         return '';
     };
 
-    util.getStyle = function(element, key) {
+    /**
+     * 获取元素的样式
+     * @param {HTMLElement} element 目标元素
+     * @param {string} key 目标样式key
+     * @return {string|number}
+     */
+    util.getStyle = function (element, key) {
         key = util.toCamelCase(key);
         var value = element.currentStyle && element.currentStyle[key]
             || util.getComputedStyle(element, key)
@@ -150,11 +208,21 @@ define(function(require) {
                     ? (parseFloat(filter.match(/opacity=([^)]*)/)[1]) / 100) + '' : '1';
 
             }
+            else {
+                value = 0;
+            }
         }
         return value;
     };
 
-    util.setStyle = function(element, key, value) {
+    /**
+     * 设置元素的样式
+     * @param {HTMLElement} element 目标元素
+     * @param {string} key 目标样式key
+     * @param {string} value 样式值
+     * @return {HTMLElement}
+     */
+    util.setStyle = function (element, key, value) {
         key = util.toCamelCase(key);
 
         if (util.isNumber(value)
@@ -168,7 +236,7 @@ define(function(require) {
             && util.ie && util.ie <= 8
         ) {
             style.filter = (style.filter || '').replace(/alpha\([^\)]*\)/gi, '')
-                + (value == 1 ? '' : 'alpha(opacity=' + value * 100 + ')');
+                + (value === 1 ? '' : 'alpha(opacity=' + value * 100 + ')');
             style.zoom = 1;
         }
         else {
@@ -178,9 +246,17 @@ define(function(require) {
         return element;
     };
 
-    util.setStyles = function(element, styles) {
+    /**
+     * 批量设置元素的样式
+     * @param {HTMLElement} element 目标元素
+     * @param {Object} styles 样式
+     * @return {HTMLElement}
+     */
+    util.setStyles = function (element, styles) {
         for (var key in styles) {
-            util.setStyle(element, key, styles[key]);
+            if (styles.hasOwnProperty(key)) {
+                util.setStyle(element, key, styles[key]);
+            }
         }
         return element;
     };
