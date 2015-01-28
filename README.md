@@ -15,7 +15,7 @@ Loading Dance file:
 <script src="http://bcscdn.baidu.com/public03/static/dance-0.0.1.min.js"></script>
 ```
 
-Signal move:
+Single move:
 
 ```javascript
 Dance.move(ele)
